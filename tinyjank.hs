@@ -40,25 +40,24 @@ greens = [22,23,24,26,28,43]
 range  = map fst $ zip [0..] image
 
 -- 手牌の組み合わせ
-data Hand  = KokushiMuso Int   |
-             SevenPairs  [Int] |
-             Twins       Int   |
-             Triplets    Int   |
-             Serials     Int   |
-             Singles     [Int] |
-             Rest        [Int] |
-             Fixed       deriving (Show, Eq, Ord)
-type Hands = [Hand]
+data Hand  = Kokushi  Int   |
+             Pairs    [Int] |
+             Twins    Int   |
+             Triplets Int   |
+             Serials  Int   |
+             Singles  [Int] |
+             Rest     [Int] |
+             Fixed    deriving (Show, Eq, Ord)
 
 -- Handを[Int]に変換する
 hand_to_intarray :: Hand -> [Int]
-hand_to_intarray (Rest        x) = x
-hand_to_intarray (Singles     x) = x
-hand_to_intarray (Twins       x) = [x,x]
-hand_to_intarray (Triplets    x) = [x,x,x]
-hand_to_intarray (Serials     x) = [x,x+1,x+2]
-hand_to_intarray (KokushiMuso x) = x:yaochu
-hand_to_intarray (SevenPairs  x) = x++x
+hand_to_intarray (Rest     x) = x
+hand_to_intarray (Singles  x) = x
+hand_to_intarray (Twins    x) = [x,x]
+hand_to_intarray (Triplets x) = [x,x,x]
+hand_to_intarray (Serials  x) = [x,x+1,x+2]
+hand_to_intarray (Kokushi  x) = x:yaochu
+hand_to_intarray (Pairs    x) = x++x
 
 -- ヒストグラムを返す
 histogram :: [Int] -> [(Int,Int)]
@@ -66,8 +65,8 @@ histogram a = zip [0..] h
   where h = map (\n -> length $ filter (== n) a) range
 
 -- 七対子判定
-seven_pairs :: [Int] -> Hands
-seven_pairs a | cz == 7   = [SevenPairs ps]
+seven_pairs :: [Int] -> [Hand]
+seven_pairs a | cz == 7   = [Pairs ps]
               | otherwise = []
   where h  = histogram a
         z  = filter ((== 2) . snd) h
@@ -75,8 +74,8 @@ seven_pairs a | cz == 7   = [SevenPairs ps]
         ps = map (\x -> fst x) z
 
 -- 国士無双判定
-kokushi_muso :: [Int] -> Hands
-kokushi_muso a | cp == 14 && cz == 1 = [KokushiMuso t]
+kokushi_muso :: [Int] -> [Hand]
+kokushi_muso a | cp == 14 && cz == 1 = [Kokushi t]
                | otherwise = []
   where h  = histogram a
         z  = filter ((== 2) . snd) h
@@ -86,19 +85,19 @@ kokushi_muso a | cp == 14 && cz == 1 = [KokushiMuso t]
         cp = length ps
 
 -- 雀頭候補を返す
-twins :: [Int] -> Hands
+twins :: [Int] -> [Hand]
 twins a = map (\x -> Twins $ fst x) z
   where h = histogram a
         z = filter ((>= 2) . snd) h
 
 -- 刻子候補を返す
-triplets :: [Int] -> Hands
+triplets :: [Int] -> [Hand]
 triplets a = map (\x -> Triplets $ fst x) z
   where h = histogram a
         z = filter ((>= 3) . snd) h
 
 -- 順子候補を返す
-serials :: [Int] -> Hands
+serials :: [Int] -> [Hand]
 serials a = map (\(i,b) -> Serials i) $ filter (\(i,b) -> b) r
   where h    = histogram a
         h0   = map snd h
@@ -111,14 +110,14 @@ serials a = map (\(i,b) -> Serials i) $ filter (\(i,b) -> b) r
 subset :: [Int] -> [Int] -> [Int]
 subset a b = foldr delete a b
 
--- [Hands]を文字列化する
+-- [[Hand]]を文字列化する
 -- *Main>  show_hands_array [[Triplets 22],[Twins 19]]
 -- ["[22,22,22]","[19,19]"]
-show_hands_array :: [Hands] -> [String]
+show_hands_array :: [[Hand]] -> [String]
 show_hands_array a = map show_hands a
 
--- Handsを文字列化する
--- *Main> show_hands [KokushiMuso 19]
+-- [Hand]を文字列化する
+-- *Main> show_hands [Kokushi 19]
 -- "[1,9,11,19,19,21,29,31,33,35,37,41,43,45]"
 show_hands :: [Hand] -> String
 show_hands hs = concatMap show_hand hs
@@ -127,21 +126,21 @@ show_hands hs = concatMap show_hand hs
 -- *Main> show_hand (Triplets 11)
 -- "[11,11,11]"
 show_hand :: Hand -> String
-show_hand (Rest        x) = show $ x
--- show_hand (Rest     x) = show $ map (\x -> image' !! x) x
-show_hand (Singles     x) = show $ x
-show_hand (Twins       x) = show $ [x,x]
-show_hand (Triplets    x) = show $ [x,x,x]
-show_hand (Serials     x) = show $ [x,x+1,x+2]
-show_hand (KokushiMuso x) = show . sort $ x:yaochu
-show_hand (SevenPairs  x) = show . sort $ x++x
+show_hand (Rest     x) = show $ x
+-- show_hand (Rest  x) = show $ map (\x -> image' !! x) x
+show_hand (Singles  x) = show $ x
+show_hand (Twins    x) = show $ [x,x]
+show_hand (Triplets x) = show $ [x,x,x]
+show_hand (Serials  x) = show $ [x,x+1,x+2]
+show_hand (Kokushi  x) = show . sort $ x:yaochu
+show_hand (Pairs    x) = show . sort $ x++x
 show_hand otherwise       = "<unsure>"
 
 -- アガリが成立する組み合せの集合を返す
 -- *Main> p $ solve [1,9,11,19,21,29,31,33,35,37,41,43,45,19]
---     [KokushiMuso 19]
+--     [Kokushi 19]
 -- *Main> p $ solve [1,1,2,2,3,3,4,4,5,5,6,6,7,7]
---     [SevenPairs [1,2,3,4,5,6,7]]
+--     [Pairs [1,2,3,4,5,6,7]]
 --     [Twins 1,Serials 2,Serials 2,Serials 5,Serials 5]
 --     [Twins 4,Serials 1,Serials 1,Serials 5,Serials 5]
 --     [Twins 7,Serials 1,Serials 1,Serials 4,Serials 4]
@@ -155,9 +154,9 @@ solve arr = filter (not . null) $ r3 ++ r2:r1:[]
   -- ts    = [[1,1],[9,9]]
   -- hands = [[Twins 1,Rest [9,9,19,20,21,31,43,44]],
   --          [Twins 9,Rest [1,1,19,20,21,31,43,44]]]
-  where r1  = seven_pairs  arr :: Hands -- 七対子判定
-        r2  = kokushi_muso arr :: Hands -- 国士無双判定
-        r3  = solve' hands           -- 1雀頭+N面子判定
+  where r1  = seven_pairs  arr -- 七対子判定
+        r2  = kokushi_muso arr -- 国士無双判定
+        r3  = solve' hands  -- 1雀頭+N面子判定
         ts  = map hand_to_intarray $ twins arr
         hands = map (\x -> let i:is=x in (Twins i):[Rest $ subset arr x]) ts
 
@@ -165,7 +164,7 @@ solve arr = filter (not . null) $ r3 ++ r2:r1:[]
 -- Rest要素が無くなれば再帰呼び出しを終了する(more == 0)
 -- *Main> solve' [[Twins 1,Rest [14,14,15,15,16,16,18,18,18]]]
 -- [[Twins 1,Triplets 18,Serials 14,Serials 14]]
-solve' :: [Hands] -> [[Hand]]
+solve' :: [[Hand]] -> [[Hand]]
 solve' hands = if (more == 0) then r0 else solve' r0
   where r0 = nub $ breakdown hands -- nubを使って重複要素を削除する
         more = length $ filter findrest r0
@@ -180,7 +179,7 @@ solve' hands = if (more == 0) then r0 else solve' r0
 --     [Twins 1,Triplets 6,Serials 2,Rest [5,5,5,7,7,7]]
 --     [Twins 1,Triplets 7,Serials 2,Rest [5,5,5,6,6,6]]
 --     [Twins 1,Serials 2,Serials 5,Rest [5,5,6,6,7,7]]
-breakdown :: [Hands] -> [Hands]
+breakdown :: [[Hand]] -> [[Hand]]
 breakdown hands = concatMap (\x -> breakdown' x) hands
 
 -- Rest要素のメンツを1つ仮確定し、組み合わせを更新する
@@ -189,7 +188,7 @@ breakdown hands = concatMap (\x -> breakdown' x) hands
 --     [Twins 1,Triplets 6,Serials 2,Rest [5,5,5,7,7,7]]
 --     [Twins 1,Triplets 7,Serials 2,Rest [5,5,5,6,6,6]]
 --     [Twins 1,Serials 2,Serials 5,Rest [5,5,6,6,7,7]]
-breakdown' :: [Hand] -> [Hands]
+breakdown' :: [Hand] -> [[Hand]]
 breakdown' hands = map (\x -> sort $ fixed ++ [x] ++ (newrest x)) candy
     where  rest  = search_rest  hands
            fixed = search_fixed hands
@@ -241,10 +240,10 @@ p hands = mapM_ (\x -> putStrLn $ "    "++(show x)) hands
 -- テスト
 -- # 国士無双
 -- *Main> p $ solve [1,9,11,19,21,29,31,33,35,37,41,43,45,45]
--- [KokushiMuso 45]
+-- [Kokushi 45]
 -- 
 -- *Main> p $ solve [1,1,2,2,3,3,4,4,5,5,6,6,7,7]
--- [SevenPairs [1,2,3,4,5,6,7]]
+-- [Pairs [1,2,3,4,5,6,7]]
 -- [Twins 1,Serials 2,Serials 2,Serials 5,Serials 5]
 -- [Twins 4,Serials 1,Serials 1,Serials 5,Serials 5]
 -- [Twins 7,Serials 1,Serials 1,Serials 4,Serials 4]
