@@ -60,11 +60,17 @@ hand_to_intarray (Kokushi  x) = x:yaochu
 hand_to_intarray (Pairs    x) = x++x
 
 -- ヒストグラムを返す
+-- *Main> map fst $ histogram [1,9,11,19,21,29,31,33,35,37,41,43,45,45]
+-- [0..45]
+-- *Main> map snd $ histogram [1,9,11,19,21,29,31,33,35,37,41,43,45,45]
+-- [0,1,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0,0,1,0,1,0,1,0,1,0,1,0,0,0,1,0,1,0,2]
 histogram :: [Int] -> [(Int,Int)]
 histogram a = zip [0..] h
   where h = map (\n -> length $ filter (== n) a) range
 
 -- 七対子判定
+-- *Main> seven_pairs [1,1,2,2,3,3,4,4,5,5,6,6,7,7]
+-- [Pairs [1,2,3,4,5,6,7]]
 seven_pairs :: [Int] -> [Hand]
 seven_pairs a | cz == 7   = [Pairs ps]
               | otherwise = []
@@ -74,6 +80,8 @@ seven_pairs a | cz == 7   = [Pairs ps]
         ps = map (\x -> fst x) z
 
 -- 国士無双判定
+-- *Main> kokushi_muso [1,9,11,19,21,29,31,33,35,37,41,43,45,45]
+-- [Kokushi 45]
 kokushi_muso :: [Int] -> [Hand]
 kokushi_muso a | cp == 14 && cz == 1 = [Kokushi t]
                | otherwise = []
@@ -85,18 +93,24 @@ kokushi_muso a | cp == 14 && cz == 1 = [Kokushi t]
         cp = length ps
 
 -- 雀頭候補を返す
+-- *Main> twins [1,1,2,2,3,3,4,4,5,5,5,6,6,6]
+-- [Twins 1,Twins 2,Twins 3,Twins 4,Twins 5,Twins 6]
 twins :: [Int] -> [Hand]
-twins a = map (\x -> Twins $ fst x) z
+twins a = map (Twins . fst) z
   where h = histogram a
         z = filter ((>= 2) . snd) h
 
 -- 刻子候補を返す
+-- *Main> triplets [1,1,2,2,3,3,4,4,5,5,5,6,6,6]
+-- [Triplets 5,Triplets 6]
 triplets :: [Int] -> [Hand]
-triplets a = map (\x -> Triplets $ fst x) z
+triplets a = map (Triplets . fst) z
   where h = histogram a
         z = filter ((>= 3) . snd) h
 
 -- 順子候補を返す
+-- *Main> serials [1,1,2,2,3,3,4,4,5,5,5,6,6,6]
+-- [Serials 1,Serials 2,Serials 3,Serials 4]
 serials :: [Int] -> [Hand]
 serials a = map (\(i,b) -> Serials i) $ filter (\(i,b) -> b) r
   where h    = histogram a
@@ -107,6 +121,8 @@ serials a = map (\(i,b) -> Serials i) $ filter (\(i,b) -> b) r
 
 -- 差集合を返す
 -- 重複要素を削除しない。
+-- *Main> subset [1,1,2,2,3,3,4,4,5,5,6,6,7,7] [1,2,3]
+-- [1,2,3,4,4,5,5,6,6,7,7]
 subset :: [Int] -> [Int] -> [Int]
 subset a b = foldr delete a b
 
@@ -169,9 +185,9 @@ solve' hands = if (more == 0) then r0 else solve' r0
   where r0 = nub $ breakdown hands -- nubを使って重複要素を削除する
         more = length $ filter findrest r0
         findrest hs = case hs of
-            x@(Rest _):xs -> True
-            _:xs -> findrest xs
-            []   -> False
+            (Rest _):_ -> True
+            _:xs       -> findrest xs
+            []         -> False
 
 -- Rest要素のメンツを1つ仮確定し、組み合わせを更新する
 -- *Main> p $ breakdown [[Twins 1,Serials 2,Rest [5,5,5,6,6,6,7,7,7]]]
@@ -180,7 +196,7 @@ solve' hands = if (more == 0) then r0 else solve' r0
 --     [Twins 1,Triplets 7,Serials 2,Rest [5,5,5,6,6,6]]
 --     [Twins 1,Serials 2,Serials 5,Rest [5,5,6,6,7,7]]
 breakdown :: [[Hand]] -> [[Hand]]
-breakdown hands = concatMap (\x -> breakdown' x) hands
+breakdown hands = concatMap breakdown' hands
 
 -- Rest要素のメンツを1つ仮確定し、組み合わせを更新する
 -- *Main> p $ breakdown' [Twins 1,Serials 2,Rest [5,5,5,6,6,6,7,7,7]]
@@ -193,7 +209,7 @@ breakdown' hands = map (\x -> sort $ fixed ++ [x] ++ (newrest x)) candy
     where  rest  = search_rest  hands
            fixed = search_fixed hands
            candy = find_mentsu_from hands
-           newrest x = remove_from_hand (rest !! 0) x
+           newrest x = remove_from_hand (head rest) x
 
 -- Rest要素から仮確定したメンツを取り除く
 -- *Main> remove_from_hand (Rest [5,5,5,6,6,6,7,7,7]) (Serials 5)
@@ -211,7 +227,7 @@ remove_from_hand rest candy = if (null array) then [] else [Rest array]
 -- [Triplets 5,Triplets 6,Triplets 7,Serials 5]
 find_mentsu_from :: [Hand] -> [Hand]
 find_mentsu_from hands = ts ++ ss
-    where rest = hand_to_intarray $ (search_rest hands) !! 0
+    where rest = hand_to_intarray $ head $ search_rest hands
           ts = triplets rest
           ss = serials  rest
 
