@@ -1,36 +1,28 @@
 #!/usr/bin/env runhaskell
-{-# LANGUAGE OverloadedStrings #-}
 
 -- 機能: 麻雀の役判定と点数計算
 -- 作成: 2017-10-19  ken3@nurs.or.jp
 -- 更新: 2017-10-24  ken3@nurs.or.jp
 
-import qualified Data.Text    as T
-import qualified Data.Text.IO as T
 import Data.List
-import Data.Maybe
-import Data.Monoid ((<>))
-import Control.Applicative ((<*>))
-import Control.Monad (MonadPlus)
-import Control.Monad (guard)
 
 -- 表示用データ
 image :: [String]
 image =  [
-    {-
     -- 端末が漢字表示に対応している場合はこちらの image を使用する。
     "■", "一", "二", "三", "四", "五", "六", "七", "八", "九",  -- 萬子
     "■", "①", "②", "③", "④", "⑤", "⑥", "⑦", "⑧", "⑨",  -- 筒子
     "■", "Ⅰ", "Ⅱ", "Ⅲ", "Ⅳ", "Ⅴ", "Ⅵ", "Ⅶ", "Ⅷ", "Ⅸ",  -- 索子
     "■", "東", "■", "南", "■", "西", "■", "北", "■", "■",  -- 風牌
     "■", "白", "■", "発", "■", "中"                         -- 三元牌
-    -}
+    {-
     -- 端末が漢字表示に対応していない場合はこちらの image を使用する。
     "00", "M1", "M2", "M3", "M4", "M5", "M6", "M7", "M8", "M9",  -- 萬子
     "10", "P1", "P2", "P3", "P4", "P5", "P6", "P7", "P8", "P9",  -- 筒子
     "20", "S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9",  -- 索子
     "30", "We", "32", "Ws", "34", "Ww", "36", "Wn", "38", "39",  -- 風牌
     "40", "Dw", "42", "Dg", "44", "Dr"                         -- 三元牌
+    -}
     ]
 
 -- 判定用データ
@@ -83,44 +75,42 @@ histogram' a = zip [0..] $ histogram a
 -- *Main> seven_pairs [1,1,2,2,3,3,4,4,5,5,6,6,7,7]
 -- [Twins [1,2,3,4,5,6,7]]
 seven_pairs :: [Int] -> [Hand]
-seven_pairs a | (length z) == 7 = [Twins $ map fst z]
+seven_pairs a | (length t) == 7 = [Twins t]
               | otherwise = []
-  where z  = filter ((== 2) . snd) (histogram' a)
+  where t = map fst $ filter ((== 2) . snd) $ histogram' a
 
 -- 国士無双判定
 -- *Main> kokushi_muso [1,9,11,19,21,29,31,33,35,37,41,43,45,45]
 -- [Kokushi [45]]
 kokushi_muso :: [Int] -> [Hand]
-kokushi_muso a | (length p) == 14 && (length z) == 1 = [Kokushi [t]]
+kokushi_muso a | (length p) == 14 && (length t) == 1 = [Kokushi t]
                | otherwise = []
-  where z   = filter ((== 2) . snd) (histogram' a)
-        t:_ = map fst z
-        p   = intersect a yaochu
+  where t = map fst $ filter ((== 2) . snd) $ histogram' a
+        p = intersect a yaochu
 
 -- 雀頭候補を返す
 -- *Main> twins [1,1,2,2,3,3,4,4,5,5,5,6,6,6]
 -- [Twins [1],Twins [2],Twins [3],Twins [4],Twins [5],Twins [6]]
 twins :: [Int] -> [Hand]
-twins a = map (\x -> Twins $ [fst x]) $ filter ((>= 2) . snd)(histogram' a)
+twins a = map (\x -> Twins $ [fst x]) $ filter ((>= 2) . snd) $ histogram' a
 
 -- 刻子候補を返す
 -- *Main> triplets [1,1,2,2,3,3,4,4,5,5,5,6,6,6]
 -- [Triplets [5],Triplets [6]]
 triplets :: [Int] -> [Hand]
-triplets a = map (\x -> Triplets $ [fst x])(filter ((>= 3) . snd)(histogram' a))
+triplets a = map (\x -> Triplets $ [fst x]) $ filter ((>= 3) . snd) $ histogram' a
 
 -- 順子候補を返す
 -- *Main> serials [1,1,2,2,3,3,4,4,5,5,5,6,6,6]
 -- [Series [1],Series [2],Series [3],Series [4]]
 serials :: [Int] -> [Hand]
-serials a = map (\x -> Series $ [fst x]) $ filter snd r
-  where h0 = map snd (histogram' a)
+serials a = map (\(i,b) -> Series [i]) $ filter snd r
+  where h0 = histogram a
         h1 = drop 1 h0
-        h2 = drop 2 h0
-        r = zip [0..] $ zipWith3 (\x y z -> x*y*z/=0) h0 h1 h2
+        h2 = drop 1 h1
+        r  = zip [0..] $ zipWith3 (\x y z -> x*y*z /= 0) h0 h1 h2
 
--- 差集合を返す
--- 重複要素を削除しない。
+-- 差集合を返す(重複要素は残す)
 -- *Main> subset [1,1,2,2,3,3,4,4,5,5,6,6,7,7] [1,2,3]
 -- [1,2,3,4,4,5,5,6,6,7,7]
 subset :: [Int] -> [Int] -> [Int]
@@ -166,10 +156,10 @@ toImage x =  show_as_utf8 $ map ((!!) image) x
 solve :: [Int] -> [[Hand]]
 solve a = filter (not . null) $ r1:r2:r3
   -- 手牌から雀頭を括りだす
-  -- a   = [1,1,9,9,19,20,21,31,43,44]
-  -- ts    = [[1,1],[9,9]]
-  -- body = [[Twins 1,Rest [9,9,19,20,21,31,43,44]],
-  --          [Twins 9,Rest [1,1,19,20,21,31,43,44]]]
+  -- a    = [1,1,9,9,19,20,21,31,43,44]
+  -- ts   = [[1,1],[9,9]]
+  -- body = [[Twins[1],Rest[9,9,19,20,21,31,43,44]],
+  --         [Twins[9],Rest[1,1,19,20,21,31,43,44]]]
   where r1   = seven_pairs  a  -- 七対子判定
         r2   = kokushi_muso a  -- 国士無双判定
         r3   = solve' body  -- 1雀頭+N面子判定
@@ -206,11 +196,11 @@ breakdown xs = concatMap breakdown' xs
 --     [Twins [1],Triplets [7],Series [2],Rest [5,5,5,6,6,6]]
 --     [Twins [1],Series [2,5],Rest [5,5,6,6,7,7]]
 breakdown' :: [Hand] -> [[Hand]]
-breakdown' hands = map (\x -> sorthands $ fixed++[x]++(newrest x)) candy
-    where  rest  = head $ search_rest hands
-           fixed = search_fixed hands
+breakdown' hands = map (\x -> sorthands $ fixed++[x]++(rest' x)) candy
+    where  rest  = head $ find_rest hands
+           fixed = find_fixed hands
            candy = find_mentsu_from $ to_intarray rest
-           newrest x = remove_from rest x
+           rest' = remove_from rest
 
 -- Rest要素から仮確定したメンツを取り除く
 -- *Main > remove_from (Rest[5,5,5,6,6,6,7,7,7]) (Series[5])
@@ -230,104 +220,106 @@ find_mentsu_from a = (triplets a) ++ (serials  a)
 
 -- 加算する
 addhand :: Hand -> Hand -> Hand
-addhand x y = Rest (x0 ++ y0)
-    where x0 = to_intarray x
-          y0 = to_intarray y
+addhand x y = Rest ((to_intarray x) ++ (to_intarray y))
 
 -- 減算する
 subhand :: Hand -> Hand -> Hand
-subhand x y = Rest (subset x0 y0)
-    where x0 = to_intarray x
-          y0 = to_intarray y
+subhand x y = Rest (subset (to_intarray x) (to_intarray y))
 
 -- 手牌の並びを正規化する
+-- *Main > sorthands $ twins [1,1,2,2,3,3,4,4,5,5,5,6,6,6]
+-- [Twins [1,2,3,4,5,6]]
+-- *Main > sorthands [Twins[1],Series[2],Rest[5,7],Rest[6,6,6],Twins[7,5]]
+-- [Twins [1,5,7],Series [2],Rest [5,6,6,6,7]]
 sorthands :: [Hand] -> [Hand]
-sorthands x = kokushi ++ twins ++ triplets ++ series ++ rest
-    where kokushi  = search_kokushi x
-          twins    = search_twins x
-          triplets = search_triplets x
-          series   = search_series x
-          rest     = search_rest x
+sorthands x = (find_fixed x) ++ (find_rest x)
 
--- 手牌の中からRest要素を探し、マージした結果を返す
--- *Main> search_rest [Twins[1],Series[2],Rest[5,5,5,6,6,6,7,7,7]]
+-- 手牌の中から未確定牌(Rest要素)を探し、マージした結果を返す
+-- *Main> find_rest [Twins[1],Series[2],Rest[5,5,5,6,6,6,7,7,7]]
 -- [Rest [5,5,5,6,6,6,7,7,7]]
-search_rest :: [Hand] -> [Hand]
-search_rest hands = if (null r) then [] else [Rest r]
-    where r = search_rest' [] hands
-search_rest' :: [Int] -> [Hand] -> [Int]
-search_rest' acc hands = case hands of
-    x@(Rest _):xs -> search_rest' (acc++(to_intarray x)) xs
-    _:xs -> search_rest' acc xs
+find_rest :: [Hand] -> [Hand]
+find_rest hands = if (null r) then [] else [Rest $ sort r]
+    where r = find_rest' [] hands
+find_rest' :: [Int] -> [Hand] -> [Int]
+find_rest' acc hands = case hands of
+    x@(Rest _):xs -> find_rest' (acc ++ (to_intarray x)) xs
+    _:xs -> find_rest' acc xs
     []   -> acc
 
 -- 手牌の中から確定牌(Rest要素以外)を探して返す
--- *Main> search_fixed [Twins[1],Series[2],Rest[5,5,5,6,6,6,7,7,7]]
+-- *Main> find_fixed [Twins[1],Series[2],Rest[5,5,5,6,6,6,7,7,7]]
 -- [Twins [1],Series [2]]
-search_fixed :: [Hand] -> [Hand]
-search_fixed hands = if (null r) then [] else (sort r)
-    where r = search_fixed' [] hands
-search_fixed' :: [Hand] -> [Hand] -> [Hand]
-search_fixed' acc hands = case hands of
-    x@(Rest _):xs -> search_fixed' acc xs
-    x:xs -> search_fixed' (x:acc) xs
-    []   -> acc
+find_fixed :: [Hand] -> [Hand]
+find_fixed x = kokushi ++ twins ++ triplets ++ series
+    where kokushi  = find_kokushi x
+          twins    = find_twins x
+          triplets = find_triplets x
+          series   = find_series x
 
 -- 手牌の中からTwins要素を探し、マージした結果を返す
--- *Main> search_twins [Twins[1],Twins[11,15],Twins[21],Series[2],Rest[5,7,9]]
+-- *Main> find_twins [Twins[1],Twins[11,15],Twins[21],Series[2],Rest[5,7,9]]
 -- [Twins [1,11,15,21]]
-search_twins :: [Hand] -> [Hand]
-search_twins hands = if (null r) then [] else [Twins $ sort r]
-    where r = search_twins' [] hands
-search_twins' :: [Int] -> [Hand] -> [Int]
-search_twins' acc hands = case hands of
-    x@(Twins list):xs -> search_twins' (acc ++ list) xs
-    _:xs -> search_twins' acc xs
+find_twins :: [Hand] -> [Hand]
+find_twins hands | null r    = []
+                 | otherwise = [Twins $ sort r]
+    where r = find_twins' [] hands
+find_twins' :: [Int] -> [Hand] -> [Int]
+find_twins' acc hands = case hands of
+    x@(Twins list):xs -> find_twins' (acc ++ list) xs
+    _:xs -> find_twins' acc xs
     []   -> acc
 
 -- 手牌の中からTriplets要素を探し、マージした結果を返す
--- *Main> search_triplets [Twins[1],Triplets[11],Triplets[21],Series[2],Rest[5,7,9]]
+-- *Main> find_triplets [Twins[1],Triplets[11],Triplets[21],Series[2],Rest[5,7,9]]
 -- [Triplets [11,21]]
-search_triplets :: [Hand] -> [Hand]
-search_triplets hands = if (null r) then [] else [Triplets $ sort r]
-    where r = search_triplets' [] hands
-search_triplets' :: [Int] -> [Hand] -> [Int]
-search_triplets' acc hands = case hands of
-    x@(Triplets list):xs -> search_triplets' (acc ++ list) xs
-    _:xs -> search_triplets' acc xs
+find_triplets :: [Hand] -> [Hand]
+find_triplets hands | null r    = []
+                    | otherwise = [Triplets $ sort r]
+    where r = find_triplets' [] hands
+find_triplets' :: [Int] -> [Hand] -> [Int]
+find_triplets' acc hands = case hands of
+    x@(Triplets list):xs -> find_triplets' (acc ++ list) xs
+    _:xs -> find_triplets' acc xs
     []   -> acc
 
 -- 手牌の中からSeries要素を探し、マージした結果を返す
--- *Main> search_series [Twins[1],Triplets[11],Series[21],Series[2],Rest[5,7,9]]
+-- *Main> find_series [Twins[1],Triplets[11],Series[21],Series[2],Rest[5,7,9]]
 -- [Series [2,21]]
-search_series :: [Hand] -> [Hand]
-search_series hands = if (null r) then [] else [Series $ sort r]
-    where r = search_series' [] hands
-search_series' :: [Int] -> [Hand] -> [Int]
-search_series' acc hands = case hands of
-    x@(Series list):xs -> search_series' (acc ++ list) xs
-    _:xs -> search_series' acc xs
+find_series :: [Hand] -> [Hand]
+find_series hands | null r    = []
+                  | otherwise = [Series $ sort r]
+    where r = find_series' [] hands
+find_series' :: [Int] -> [Hand] -> [Int]
+find_series' acc hands = case hands of
+    x@(Series list):xs -> find_series' (acc ++ list) xs
+    _:xs -> find_series' acc xs
     []   -> acc
 
--- 手牌の中からKokushi要素を探し、マージした結果を返す
--- *Main> search_kokushi [Kokushi[1]]
+-- 手牌の中からKokushi要素を探して返す
+-- 手牌の中のKokushi要素は高々1つしか無いはず。
+-- *Main> find_kokushi [Kokushi[1]]
 -- [Kokushi [1]]
-search_kokushi :: [Hand] -> [Hand]
-search_kokushi hands = if (null r) then [] else [Kokushi $ sort r]
-    where r = search_kokushi' hands
-search_kokushi' :: [Hand] -> [Int]
-search_kokushi' hands = case hands of
+find_kokushi :: [Hand] -> [Hand]
+find_kokushi hands | null r    = []
+                   | otherwise = [Kokushi $ sort r]
+    where r = find_kokushi' hands
+find_kokushi' :: [Hand] -> [Int]
+find_kokushi' hands = case hands of
     x@(Kokushi list):xs -> list
-    _:xs -> search_kokushi' xs
+    _:xs -> find_kokushi' xs
     []   -> []
 
--- 実行結果を出力するためのサービス関数(ASCIIリスト)
-p :: [[Hand]] -> IO ()
-p hands = mapM_ (\x -> putStrLn $ "    " ++ (show x)) hands
+-- 実行結果を出力するための共通サービス関数
+generic_p :: ([Hand] -> String) -> [[Hand]] -> IO ()
+generic_p f hands = mapM_ (\x -> putStrLn $ "    " ++ (f x)) hands
 
--- 実行結果を出力するためのサービス関数(麻雀牌)
+-- ASCIIリスト形式で出力する
+p :: [[Hand]] -> IO ()
+p = generic_p show
+
+-- 麻雀牌形式で出力する
 pp :: [[Hand]] -> IO ()
-pp hands = mapM_ (\x -> putStrLn $ "    " ++ (concatMap show_hand x)) hands
+pp = generic_p (concatMap show_hand)
 
 -- メイン関数
 main :: IO ()
