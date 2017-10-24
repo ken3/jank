@@ -188,13 +188,6 @@ solve' hands | count == 0 = r0
 --     [Twins [1],Series [2,5],Rest [5,5,6,6,7,7]]
 breakdown :: [[Hand]] -> [[Hand]]
 breakdown xs = concatMap breakdown' xs
-
--- Rest要素のメンツを1つ仮確定し、組み合わせを更新する
--- Main > p $ breakdown' [Twins[1],Series[2],Rest[5,5,5,6,6,6,7,7,7]]
---     [Twins [1],Triplets [5],Series [2],Rest [6,6,6,7,7,7]]
---     [Twins [1],Triplets [6],Series [2],Rest [5,5,5,7,7,7]]
---     [Twins [1],Triplets [7],Series [2],Rest [5,5,5,6,6,6]]
---     [Twins [1],Series [2,5],Rest [5,5,6,6,7,7]]
 breakdown' :: [Hand] -> [[Hand]]
 breakdown' hands = map (\x -> sorthands $ fixed++[x]++(rest' x)) candy
     where  rest  = head $ find_rest hands
