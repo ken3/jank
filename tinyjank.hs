@@ -49,11 +49,11 @@ show_as_utf8 :: Show a => a -> String
 show_as_utf8 x = cons (show x) where
   cons :: String -> String
   cons [] = []
-  cons list@(x:xs) | x == '\"' = str++(cons rest)
+  cons m@(x:xs) | x == '\"' = str++(cons rest)
                    | x == '\'' = '\'':char:'\'':(cons rest')
                    | otherwise = x:cons xs where
-                       (str,rest):_   = reads list
-                       (char,rest'):_ = reads list
+                       (str,rest):_   = reads m
+                       (char,rest'):_ = reads m
 
 -- Handを[Int]に変換する
 to_intarray :: Hand -> [Int]
@@ -173,10 +173,9 @@ solve' hands | count == 0 = r0
              | otherwise  = solve' r0
   where r0 = nub $ breakdown hands -- nubを使って重複要素を削除する
         count = length $ filter has_rest r0
-        has_rest hs = case hs of
-            (Rest _):_ -> True
-            _:xs -> has_rest xs
-            []   -> False
+        has_rest hs = case hs of (Rest _):_ -> True
+                                 _:xs -> has_rest xs
+                                 []   -> False
 
 -- Rest要素のメンツを1つ仮確定し、組み合わせを更新する
 -- *Main > p $ breakdown [[Twins[1],Series[2],Rest[5,5,5,6,6,6,7,7,7]]]
@@ -232,10 +231,9 @@ find_rest :: [Hand] -> [Hand]
 find_rest hands = if (null r) then [] else [Rest $ sort r]
     where r = find_rest' [] hands
 find_rest' :: [Int] -> [Hand] -> [Int]
-find_rest' acc hands = case hands of
-    x@(Rest _):xs -> find_rest' (acc ++ (to_intarray x)) xs
-    _:xs -> find_rest' acc xs
-    []   -> acc
+find_rest' r hs = case hs of x@(Rest _):xs -> find_rest' (r ++ (to_intarray x)) xs
+                             _:xs -> find_rest' r xs
+                             []   -> r
 
 -- 手牌の中から確定牌(Rest要素以外)を探して返す
 -- *Main> find_fixed [Twins[1],Series[2],Rest[5,5,5,6,6,6,7,7,7]]
@@ -255,10 +253,9 @@ find_twins hands | null r    = []
                  | otherwise = [Twins $ sort r]
     where r = find_twins' [] hands
 find_twins' :: [Int] -> [Hand] -> [Int]
-find_twins' acc hands = case hands of
-    x@(Twins list):xs -> find_twins' (acc ++ list) xs
-    _:xs -> find_twins' acc xs
-    []   -> acc
+find_twins' r hs = case hs of x@(Twins m):xs -> find_twins' (r ++ m) xs
+                              _:xs -> find_twins' r xs
+                              []   -> r
 
 -- 手牌の中からTriplets要素を探し、マージした結果を返す
 -- *Main> find_triplets [Twins[1],Triplets[11],Triplets[21],Series[2],Rest[5,7,9]]
@@ -268,10 +265,9 @@ find_triplets hands | null r    = []
                     | otherwise = [Triplets $ sort r]
     where r = find_triplets' [] hands
 find_triplets' :: [Int] -> [Hand] -> [Int]
-find_triplets' acc hands = case hands of
-    x@(Triplets list):xs -> find_triplets' (acc ++ list) xs
-    _:xs -> find_triplets' acc xs
-    []   -> acc
+find_triplets' r hs = case hs of x@(Triplets m):xs -> find_triplets' (r ++ m) xs
+                                 _:xs -> find_triplets' r xs
+                                 []   -> r
 
 -- 手牌の中からSeries要素を探し、マージした結果を返す
 -- *Main> find_series [Twins[1],Triplets[11],Series[21],Series[2],Rest[5,7,9]]
@@ -281,10 +277,9 @@ find_series hands | null r    = []
                   | otherwise = [Series $ sort r]
     where r = find_series' [] hands
 find_series' :: [Int] -> [Hand] -> [Int]
-find_series' acc hands = case hands of
-    x@(Series list):xs -> find_series' (acc ++ list) xs
-    _:xs -> find_series' acc xs
-    []   -> acc
+find_series' r hs = case hs of x@(Series m):xs -> find_series' (r ++ m) xs
+                               _:xs -> find_series' r xs
+                               []   -> r
 
 -- 手牌の中からKokushi要素を探して返す
 -- 手牌の中のKokushi要素は高々1つしか無いはず。
@@ -295,10 +290,9 @@ find_kokushi hands | null r    = []
                    | otherwise = [Kokushi $ sort r]
     where r = find_kokushi' hands
 find_kokushi' :: [Hand] -> [Int]
-find_kokushi' hands = case hands of
-    x@(Kokushi list):xs -> list
-    _:xs -> find_kokushi' xs
-    []   -> []
+find_kokushi' hs = case hs of x@(Kokushi m):xs -> m
+                              _:xs -> find_kokushi' xs
+                              []   -> []
 
 -- 実行結果を出力するための共通サービス関数
 generic_p :: ([Hand] -> String) -> [[Hand]] -> IO ()
