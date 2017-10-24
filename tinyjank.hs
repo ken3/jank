@@ -105,9 +105,7 @@ triplets a = map (\x -> Triplets $ [fst x]) $ filter ((>= 3) . snd) $ histogram'
 -- [Series [1],Series [2],Series [3],Series [4]]
 serials :: [Int] -> [Hand]
 serials a = map (\(i,b) -> Series [i]) $ filter snd r
-  where h0 = histogram a
-        h1 = drop 1 h0
-        h2 = drop 1 h1
+  where h0@(_:h1@(_:h2)) = histogram a
         r  = zip [0..] $ zipWith3 (\x y z -> x*y*z /= 0) h0 h1 h2
 
 -- 差集合を返す(重複要素は残す)
@@ -160,12 +158,11 @@ solve a = filter (not . null) $ r1:r2:r3
   -- ts   = [[1,1],[9,9]]
   -- body = [[Twins[1],Rest[9,9,19,20,21,31,43,44]],
   --         [Twins[9],Rest[1,1,19,20,21,31,43,44]]]
-  where r1   = seven_pairs  a  -- 七対子判定
-        r2   = kokushi_muso a  -- 国士無双判定
-        r3   = solve' body  -- 1雀頭+N面子判定
-        ts   = map to_intarray $ twins a
-        body = map makebody ts
-        makebody x@(i:_) = (Twins [i]):[Rest $ subset a x]
+  where r1 = seven_pairs  a  -- 七対子判定
+        r2 = kokushi_muso a  -- 国士無双判定
+        r3 = solve' body  -- 1雀頭+N面子判定
+        body = map (split . head . to_intarray) $ twins a
+        split x = (Twins [x]):[Rest $ subset a [x,x]]
 
 -- 1雀頭+N面子を確定する
 -- Rest要素が無くなれば再帰呼び出しを終了する(more == 0)
@@ -176,9 +173,10 @@ solve' hands | count == 0 = r0
              | otherwise  = solve' r0
   where r0 = nub $ breakdown hands -- nubを使って重複要素を削除する
         count = length $ filter has_rest r0
-        has_rest hs = case hs of (Rest _):_ -> True
-                                 _:xs -> has_rest xs
-                                 []   -> False
+        has_rest hs = case hs of
+            (Rest _):_ -> True
+            _:xs -> has_rest xs
+            []   -> False
 
 -- Rest要素のメンツを1つ仮確定し、組み合わせを更新する
 -- *Main > p $ breakdown [[Twins[1],Series[2],Rest[5,5,5,6,6,6,7,7,7]]]
@@ -189,7 +187,7 @@ solve' hands | count == 0 = r0
 breakdown :: [[Hand]] -> [[Hand]]
 breakdown xs = concatMap breakdown' xs
 breakdown' :: [Hand] -> [[Hand]]
-breakdown' hands = map (\x -> sorthands $ fixed++[x]++(rest' x)) candy
+breakdown' hands = map (\x -> sorthands $ fixed ++ [x] ++ (rest' x)) candy
     where  rest  = head $ find_rest hands
            fixed = find_fixed hands
            candy = find_mentsu_from $ to_intarray rest
