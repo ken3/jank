@@ -59,7 +59,7 @@ show_as_utf8 x = cons (show x) where
 to_intarray :: Hand -> [Int]
 to_intarray (Twins x)    = x ++ x
 to_intarray (Triplets x) = x ++ x ++ x
-to_intarray (Series x)   = foldr (\i->(++)[i,i+1,i+2]) [] x
+to_intarray (Series x)   = foldr (\i -> (++) [i,i+1,i+2]) [] x
 to_intarray (Rest x)     = x
 to_intarray (Kokushi x)  = yaochu ++ x
 
@@ -132,11 +132,11 @@ show_hands hs = "[" ++ (concatMap show_hand hs) ++ "]"
 -- *Main >  show_hand $ Triplets[11]
 -- "[P1,P1,P1]"
 show_hand :: Hand -> String
-show_hand (Rest x)     = toImage x
 show_hand (Twins x)    = concatMap (\n -> toImage [n,n]) x
 show_hand (Triplets x) = concatMap (\n -> toImage [n,n,n]) x
 show_hand (Series x)   = concatMap (\n -> toImage [n,n+1,n+2]) x
-show_hand (Kokushi x)  = toImage (sort (yaochu ++ x))
+show_hand (Rest x)     = toImage $ sort x
+show_hand (Kokushi x)  = toImage $ sort $ yaochu ++ x
 
 -- 1メンツを文字列化する
 toImage :: [Int] -> String
