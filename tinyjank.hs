@@ -55,18 +55,6 @@ data Hand  = Twins    [Int] |
              Rest     [Int] |
              Kokushi  [Int] deriving (Show, Eq, Ord)
 
--- Handコンストラクタ
-toTwins    :: [Int] -> Hand
-toTriplets :: [Int] -> Hand
-toSeries   :: [Int] -> Hand
-toRest     :: [Int] -> Hand
-toKokushi  :: [Int] -> Hand
-toTwins    =  Twins
-toTriplets =  Triplets
-toSeries   =  Series
-toRest     =  Rest
-toKokushi  =  Kokushi
-
 -- Handを[Int]に変換する
 unbox :: Hand -> [Int]
 unbox (Twins x)    = x ++ x
@@ -89,54 +77,19 @@ addhand x y = Rest ((unbox x) ++ (unbox y))
 subhand :: Hand -> Hand -> Hand
 subhand x y = Rest (subset (unbox x) (unbox y))
 
--- ヒストグラムを返す
--- *Main> histogram [1,9,11,19,21,29,31,33,35,37,41,43,45,45]
--- [0,1,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0,0,1,0,...,0,1,0,1,0,2]
-histogram  :: [Int] -> [Int]
-histogram  a = map (\n -> length $ filter (== n) a) range
+-- 1メンツを文字列化する
+toImage :: [Int] -> String
+toImage x = show_as_utf8 $ map ((!!) image) x
 
--- Hand抽出関数
--- cons : タプルをHandに変換するコンバータ
--- cond : タプルの抽出条件
--- hs   : ヒストグラム
-pick :: ((Int,Int) -> Hand) -> ((Int,Int) -> Bool) -> [Int] -> [Hand]
-pick cons cond hs = map cons $ filter cond $ zip [0..] hs
-
--- 七対子判定
--- *Main> seven_pairs [1,1,2,2,3,3,4,4,5,5,6,6,7,7]
--- [Twins [1,2,3,4,5,6,7]]
-seven_pairs :: [Int] -> [Hand]
-seven_pairs a | (length t) == 7 = t
-              | otherwise = []
-  where t = pick (toTwins . (:[]) . fst) ((== 2) . snd) (histogram a)
-
--- 国士無双判定
--- *Main> kokushi_muso [1,9,11,19,21,29,31,33,35,37,41,43,45,45]
--- [Kokushi [45]]
-kokushi_muso :: [Int] -> [Hand]
-kokushi_muso a | (length p) == 14 && (length t) == 1 = t
-               | otherwise = []
-  where t = pick (toKokushi . (:[]) . fst) ((== 2) . snd) (histogram a)
-        p = intersect a yaochu
-
--- 雀頭候補を返す
--- *Main> twins [1,1,2,2,3,3,4,4,5,5,5,6,6,6]
--- [Twins [1],Twins [2],Twins [3],Twins [4],Twins [5],Twins [6]]
-twins :: [Int] -> [Hand]
-twins a = pick (toTwins . (:[]) . fst) ((>= 2) . snd) (histogram a)
-
--- 刻子候補を返す
--- *Main> triplets [1,1,2,2,3,3,4,4,5,5,5,6,6,6]
--- [Triplets [5],Triplets [6]]
-triplets :: [Int] -> [Hand]
-triplets a = pick (toTriplets . (:[]) . fst) ((>= 3) . snd) (histogram a)
-
--- 順子候補を返す
--- *Main> series [1,1,2,2,3,3,4,4,5,5,5,6,6,6]
--- [Series [1],Series [2],Series [3],Series [4]]
-series :: [Int] -> [Hand]
-series a = pick (\(i,b) -> Series [i]) ((/= 0) . snd) (prod3 $ histogram a)
-  where prod3 h0@(_:h1@(_:h2)) = zipWith3 (\x y z -> x*y*z) h0 h1 h2
+-- Handを文字列化する
+-- *Main > show_hand $ Triplets[11]
+-- "[P1,P1,P1]"
+show_hand :: Hand -> String
+show_hand (Twins x)    = concatMap (\n -> toImage [n,n]) x
+show_hand (Triplets x) = concatMap (\n -> toImage [n,n,n]) x
+show_hand (Series x)   = concatMap (\n -> toImage [n,n+1,n+2]) x
+show_hand (Rest x)     = toImage $ sort x
+show_hand (Kokushi x)  = toImage $ sort $ yaochu ++ x
 
 -- [[Hand]]を文字列化する
 -- *Main > show_hands_array [[Triplets[22]],[Twins[19]]]
@@ -150,19 +103,54 @@ show_hands_array a = map show_hands a
 show_hands :: [Hand] -> String
 show_hands hs = "[" ++ (concatMap show_hand hs) ++ "]"
 
--- Handを文字列化する
--- *Main > show_hand $ Triplets[11]
--- "[P1,P1,P1]"
-show_hand :: Hand -> String
-show_hand (Twins x)    = concatMap (\n -> toImage [n,n]) x
-show_hand (Triplets x) = concatMap (\n -> toImage [n,n,n]) x
-show_hand (Series x)   = concatMap (\n -> toImage [n,n+1,n+2]) x
-show_hand (Rest x)     = toImage $ sort x
-show_hand (Kokushi x)  = toImage $ sort $ yaochu ++ x
+-- ヒストグラムを返す
+-- *Main> histogram [1,9,11,19,21,29,31,33,35,37,41,43,45,45]
+-- [0,1,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0,0,1,0,...,0,1,0,1,0,2]
+histogram  :: [Int] -> [Int]
+histogram  a = map (\n -> length $ filter (== n) a) range
 
--- 1メンツを文字列化する
-toImage :: [Int] -> String
-toImage x = show_as_utf8 $ map ((!!) image) x
+-- Hand抽出関数
+-- cons : タプルをHandに変換するコンバータ
+-- cond : タプルの抽出条件
+-- hs   : ヒストグラム
+pick :: ((Int,Int) -> Hand) -> ((Int,Int) -> Bool) -> [Int] -> [Hand]
+pick cons cond hs = map cons $ filter cond $ zip [0..] hs
+
+-- 国士無双判定
+-- *Main> kokushi_muso [1,9,11,19,21,29,31,33,35,37,41,43,45,45]
+-- [Kokushi [45]]
+kokushi_muso :: [Int] -> [Hand]
+kokushi_muso a | (length p) == 14 && (length t) == 1 = t
+               | otherwise = []
+  where t = pick (Kokushi . (:[]) . fst) ((== 2) . snd) (histogram a)
+        p = intersect a yaochu
+
+-- 七対子判定
+-- *Main> seven_pairs [1,1,2,2,3,3,4,4,5,5,6,6,7,7]
+-- [Twins [1,2,3,4,5,6,7]]
+seven_pairs :: [Int] -> [Hand]
+seven_pairs a | (length t) == 7 = t
+              | otherwise = []
+  where t = pick (Twins . (:[]) . fst) ((== 2) . snd) (histogram a)
+
+-- 雀頭候補を返す
+-- *Main> twins [1,1,2,2,3,3,4,4,5,5,5,6,6,6]
+-- [Twins [1],Twins [2],Twins [3],Twins [4],Twins [5],Twins [6]]
+twins :: [Int] -> [Hand]
+twins a = pick (Twins . (:[]) . fst) ((>= 2) . snd) (histogram a)
+
+-- 刻子候補を返す
+-- *Main> triplets [1,1,2,2,3,3,4,4,5,5,5,6,6,6]
+-- [Triplets [5],Triplets [6]]
+triplets :: [Int] -> [Hand]
+triplets a = pick (Triplets . (:[]) . fst) ((>= 3) . snd) (histogram a)
+
+-- 順子候補を返す
+-- *Main> series [1,1,2,2,3,3,4,4,5,5,5,6,6,6]
+-- [Series [1],Series [2],Series [3],Series [4]]
+series :: [Int] -> [Hand]
+series a = pick (Series . (:[]) . fst) ((/= 0) . snd) (prod3 $ histogram a)
+  where prod3 h0@(_:h1@(_:h2)) = zipWith3 (\x y z -> x*y*z) h0 h1 h2
 
 -- アガリが成立する組み合せの集合を返す
 -- *Main> p $ solve [1,9,11,19,21,29,31,33,35,37,41,43,45,19]
@@ -189,7 +177,7 @@ solve a = filter (not . null) $ r1:r2:r3
         split x = (Twins [x]):[Rest $ subset a [x,x]]
 
 -- 1雀頭+N面子を確定する
--- Rest要素が無くなれば再帰呼び出しを終了する(more == 0)
+-- Rest要素が無くなれば再帰呼び出しを終了する(count == 0)
 -- *Main > solve' [[Twins[1],Rest[14,14,15,15,16,16,18,18,18]]]
 -- [[Twins [1],Triplets [18],Series [14,14]]]
 solve' :: [[Hand]] -> [[Hand]]
@@ -313,16 +301,16 @@ find_kokushi hands | null r    = []
         find_kokushi' (_:xs)             = find_kokushi' xs
 
 -- 実行結果を出力するための共通サービス関数
-generic_p :: ([Hand] -> String) -> [[Hand]] -> IO ()
-generic_p f hands = mapM_ (\x -> putStrLn $ "    " ++ (f x)) hands
+phands :: ([Hand] -> String) -> [[Hand]] -> IO ()
+phands f hands = mapM_ (\x -> putStrLn $ "    " ++ (f x)) hands
 
 -- ASCIIリスト形式で出力する
 p :: [[Hand]] -> IO ()
-p = generic_p show
+p = phands show
 
 -- 麻雀牌(image)形式で出力する
 pp :: [[Hand]] -> IO ()
-pp = generic_p (concatMap show_hand)
+pp = phands (concatMap show_hand)
 
 -- メイン関数
 main :: IO ()
