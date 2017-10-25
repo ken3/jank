@@ -30,11 +30,11 @@ show_as_utf8 :: Show a => a -> String
 show_as_utf8 x = cons (show x)
   where cons :: String -> String
         cons [] = []
-        cons m@(x:xs) | x == '\"' = str++(cons rest)
-                      | x == '\'' = '\'':char:'\'':(cons rest')
-                      | otherwise = x:cons xs
-          where (str,rest):_   = reads m
-                (char,rest'):_ = reads m
+        cons m@('\"':xs) = str ++ (cons rest)
+             where (str,rest):_   = reads m
+        cons m@('\'':xs) = '\'':char:'\'':(cons rest')
+             where (char,rest'):_ = reads m
+        cons m@(x:xs)    = x:cons xs
 
 -- 牌種データ
 wanzu  = [1..9]
@@ -74,6 +74,20 @@ unbox (Triplets x) = x ++ x ++ x
 unbox (Series x)   = foldr (\i -> (++) [i,i+1,i+2]) [] x
 unbox (Rest x)     = x
 unbox (Kokushi x)  = yaochu ++ x
+
+-- [Int]の差集合を返す(重複要素は残す)
+-- *Main> subset [1,1,2,2,3,3,4,4,5,5,6,6,7,7] [1,2,3]
+-- [1,2,3,4,4,5,5,6,6,7,7]
+subset :: [Int] -> [Int] -> [Int]
+subset a b = foldr delete a b
+
+-- RestにHandを加算する
+addhand :: Hand -> Hand -> Hand
+addhand x y = Rest ((unbox x) ++ (unbox y))
+
+-- RestからHandを減算する
+subhand :: Hand -> Hand -> Hand
+subhand x y = Rest (subset (unbox x) (unbox y))
 
 -- ヒストグラムを返す
 -- *Main> histogram [1,9,11,19,21,29,31,33,35,37,41,43,45,45]
@@ -121,14 +135,8 @@ triplets a = pick (toTriplets . (:[]) . fst) ((>= 3) . snd) (histogram a)
 -- *Main> series [1,1,2,2,3,3,4,4,5,5,5,6,6,6]
 -- [Series [1],Series [2],Series [3],Series [4]]
 series :: [Int] -> [Hand]
-series  a = pick (\(i,b) -> Series [i]) ((/= 0) . snd) (p $ histogram a)
-  where p = (\h0@(_:h1@(_:h2)) -> zipWith3 (\x y z -> x*y*z) h0 h1 h2)
-
--- 差集合を返す(重複要素は残す)
--- *Main> subset [1,1,2,2,3,3,4,4,5,5,6,6,7,7] [1,2,3]
--- [1,2,3,4,4,5,5,6,6,7,7]
-subset :: [Int] -> [Int] -> [Int]
-subset a b = foldr delete a b
+series a = pick (\(i,b) -> Series [i]) ((/= 0) . snd) (prod3 $ histogram a)
+  where prod3 h0@(_:h1@(_:h2)) = zipWith3 (\x y z -> x*y*z) h0 h1 h2
 
 -- [[Hand]]を文字列化する
 -- *Main > show_hands_array [[Triplets[22]],[Twins[19]]]
@@ -219,20 +227,6 @@ remove_from hand candy | null array = []
                        | otherwise  = [Rest array]
   where array = subset (unbox hand) (unbox candy)
 
--- 未確定牌(Rest要素)の中にある刻子と順子を返す
--- *Main > find_mentsu_from [5,5,5,6,6,6,7,7,7]
--- [Triplets [5],Triplets [6],Triplets [7],Series [5]]
-find_mentsu_from :: [Int] -> [Hand]
-find_mentsu_from a = (triplets a) ++ (series  a)
-
--- 加算する
-addhand :: Hand -> Hand -> Hand
-addhand x y = Rest ((unbox x) ++ (unbox y))
-
--- 減算する
-subhand :: Hand -> Hand -> Hand
-subhand x y = Rest (subset (unbox x) (unbox y))
-
 -- 手牌の並びを正規化する
 -- *Main > sorthands $ twins [1,1,2,2,3,3,4,4,5,5,5,6,6,6]
 -- [Twins [1,2,3,4,5,6]]
@@ -240,6 +234,12 @@ subhand x y = Rest (subset (unbox x) (unbox y))
 -- [Twins [1,5,7],Series [2],Rest [5,6,6,6,7]]
 sorthands :: [Hand] -> [Hand]
 sorthands x = (find_fixed x) ++ (find_rest x)
+
+-- 未確定牌(Rest要素)の中にある刻子と順子を返す
+-- *Main > find_mentsu_from [5,5,5,6,6,6,7,7,7]
+-- [Triplets [5],Triplets [6],Triplets [7],Series [5]]
+find_mentsu_from :: [Int] -> [Hand]
+find_mentsu_from a = (triplets a) ++ (series  a)
 
 -- 手牌の中から確定牌(Rest要素以外)を探して返す
 -- *Main> find_fixed [Twins[1],Series[2],Rest[5,5,5,6,6,6,7,7,7]]
@@ -320,7 +320,7 @@ generic_p f hands = mapM_ (\x -> putStrLn $ "    " ++ (f x)) hands
 p :: [[Hand]] -> IO ()
 p = generic_p show
 
--- 麻雀牌形式で出力する
+-- 麻雀牌(image)形式で出力する
 pp :: [[Hand]] -> IO ()
 pp = generic_p (concatMap show_hand)
 
