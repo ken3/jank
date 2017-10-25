@@ -70,26 +70,26 @@ subset :: [Int] -> [Int] -> [Int]
 subset a b = foldr delete a b
 
 -- RestにHandを加算する
-addhand :: Hand -> Hand -> Hand
-addhand x y = Rest ((unbox x) ++ (unbox y))
+add :: Hand -> Hand -> Hand
+add x y = Rest ((unbox x) ++ (unbox y))
 
 -- RestからHandを減算する
-subhand :: Hand -> Hand -> Hand
-subhand x y = Rest (subset (unbox x) (unbox y))
+sub :: Hand -> Hand -> Hand
+sub x y = Rest (subset (unbox x) (unbox y))
 
--- 1メンツを文字列化する
-toImage :: [Int] -> String
-toImage x = show_as_utf8 $ map ((!!) image) x
+-- [Int]を文字列化する
+to_string :: [Int] -> String
+to_string x = show_as_utf8 $ map ((!!) image) x
 
 -- Handを文字列化する
 -- *Main > show_hand $ Triplets[11]
 -- "[P1,P1,P1]"
 show_hand :: Hand -> String
-show_hand (Twins x)    = concatMap (\n -> toImage [n,n]) x
-show_hand (Triplets x) = concatMap (\n -> toImage [n,n,n]) x
-show_hand (Series x)   = concatMap (\n -> toImage [n,n+1,n+2]) x
-show_hand (Rest x)     = toImage $ sort x
-show_hand (Kokushi x)  = toImage $ sort $ yaochu ++ x
+show_hand (Twins x)    = concatMap (\n -> to_string [n,n]) x
+show_hand (Triplets x) = concatMap (\n -> to_string [n,n,n]) x
+show_hand (Series x)   = concatMap (\n -> to_string [n,n+1,n+2]) x
+show_hand (Rest x)     = to_string $ sort x
+show_hand (Kokushi x)  = to_string $ sort $ yaochu ++ x
 
 -- [[Hand]]を文字列化する
 -- *Main > show_hands_array [[Triplets[22]],[Twins[19]]]
@@ -150,8 +150,8 @@ triplets body = pick Triplets ((>= 3) . snd) (histogram body)
 -- *Main> series [1,1,2,2,3,3,4,4,5,5,5,6,6,6]
 -- [Series [1],Series [2],Series [3],Series [4]]
 series :: [Int] -> [Hand]
-series body = pick Series ((/= 0) . snd) (prod3 $ histogram body)
-  where prod3 h0@(_:h1@(_:h2)) = zipWith3 (\x y z -> x*y*z) h0 h1 h2
+series body = pick Series ((/= 0) . snd) (product3 $ histogram body)
+  where product3 h0@(_:h1@(_:h2)) = zipWith3 (\x y z -> x*y*z) h0 h1 h2
 
 -- アガリが成立する組み合せの集合を返す
 -- *Main> p $ solve [1,9,11,19,21,29,31,33,35,37,41,43,45,19]
@@ -319,9 +319,9 @@ main = do putStrLn $ show m1
           pp $ solve m2
           putStrLn $ show m3
           pp $ solve m3
-  where m1 = [1,9,11,19,21,29,31,33,35,37,41,43,45,45]
-        m2 = [1,1,2,2,3,3,4,4,5,5,6,6,7,7]
-        m3 = [1,1,2,2,2,3,3,3,4,4,4,26,27,28]
+    where m1 = [1,9,11,19,21,29,31,33,35,37,41,43,45,45]
+          m2 = [1,1,2,2,3,3,4,4,5,5,6,6,7,7]
+          m3 = [1,1,2,2,2,3,3,3,4,4,4,26,27,28]
 
 -- テスト
 -- # 国士無双
