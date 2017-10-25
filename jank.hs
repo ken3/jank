@@ -344,8 +344,8 @@ main = do putStrLn $ show m1
 -- # 三連刻
 -- *Main> p $ solve [1,1,2,2,2,3,3,3,4,4,4,26,27,28]
 --     [(Twins,[1]),(Triplets,[2,3,4]),(Series,[26])]
---     [(Twins [1]),(Series,[2,2,2,26])]
---     [(Twins [4]),(Series,[1,1,2,26])]
+--     [(Twins,[1]),(Series,[2,2,2,26])]
+--     [(Twins,[4]),(Series,[1,1,2,26])]
 -- *Main> pp $ solve [1,1,2,2,2,3,3,3,4,4,4,26,27,28]
 --     [M1,M1][M2,M2,M2][M3,M3,M3][M4,M4,M4][S6,S7,S8]
 --     [M1,M1][M2,M3,M4][M2,M3,M4][M2,M3,M4][S6,S7,S8]
