@@ -2,7 +2,7 @@
 
 -- 機能: 麻雀の役判定と点数計算
 -- 作成: 2017-10-19  ken3@nurs.or.jp
--- 更新: 2017-10-24  ken3@nurs.or.jp
+-- 更新: 2017-10-25  ken3@nurs.or.jp
 
 import Data.List
 
@@ -25,7 +25,18 @@ image =  [
     -}
     ]
 
--- 判定用データ
+-- 日本語文字列表示
+show_as_utf8 :: Show a => a -> String
+show_as_utf8 x = cons (show x)
+  where cons :: String -> String
+        cons [] = []
+        cons m@(x:xs) | x == '\"' = str++(cons rest)
+                      | x == '\'' = '\'':char:'\'':(cons rest')
+                      | otherwise = x:cons xs
+          where (str,rest):_   = reads m
+                (char,rest'):_ = reads m
+
+-- 牌種データ
 wanzu  = [1..9]
 pinzu  = [11..19]
 souzu  = [21..29]
@@ -44,69 +55,74 @@ data Hand  = Twins    [Int] |
              Rest     [Int] |
              Kokushi  [Int] deriving (Show, Eq, Ord)
 
--- 日本語文字列表示
-show_as_utf8 :: Show a => a -> String
-show_as_utf8 x = cons (show x) where
-  cons :: String -> String
-  cons [] = []
-  cons m@(x:xs) | x == '\"' = str++(cons rest)
-                   | x == '\'' = '\'':char:'\'':(cons rest')
-                   | otherwise = x:cons xs where
-                       (str,rest):_   = reads m
-                       (char,rest'):_ = reads m
+-- Handコンストラクタ
+toTwins    :: [Int] -> Hand
+toTriplets :: [Int] -> Hand
+toSeries   :: [Int] -> Hand
+toRest     :: [Int] -> Hand
+toKokushi  :: [Int] -> Hand
+toTwins    =  Twins
+toTriplets =  Triplets
+toSeries   =  Series
+toRest     =  Rest
+toKokushi  =  Kokushi
 
 -- Handを[Int]に変換する
-to_intarray :: Hand -> [Int]
-to_intarray (Twins x)    = x ++ x
-to_intarray (Triplets x) = x ++ x ++ x
-to_intarray (Series x)   = foldr (\i -> (++) [i,i+1,i+2]) [] x
-to_intarray (Rest x)     = x
-to_intarray (Kokushi x)  = yaochu ++ x
+unbox :: Hand -> [Int]
+unbox (Twins x)    = x ++ x
+unbox (Triplets x) = x ++ x ++ x
+unbox (Series x)   = foldr (\i -> (++) [i,i+1,i+2]) [] x
+unbox (Rest x)     = x
+unbox (Kokushi x)  = yaochu ++ x
 
 -- ヒストグラムを返す
 -- *Main> histogram [1,9,11,19,21,29,31,33,35,37,41,43,45,45]
 -- [0,1,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0,0,1,0,...,0,1,0,1,0,2]
 histogram  :: [Int] -> [Int]
 histogram  a = map (\n -> length $ filter (== n) a) range
-histogram' :: [Int] -> [(Int,Int)]
-histogram' a = zip [0..] $ histogram a
+
+-- Hand抽出関数
+-- cons : タプルをHandに変換するコンバータ
+-- cond : タプルの抽出条件
+-- hs   : ヒストグラム
+pick :: ((Int,Int) -> Hand) -> ((Int,Int) -> Bool) -> [Int] -> [Hand]
+pick cons cond hs = map cons $ filter cond $ zip [0..] hs
 
 -- 七対子判定
 -- *Main> seven_pairs [1,1,2,2,3,3,4,4,5,5,6,6,7,7]
 -- [Twins [1,2,3,4,5,6,7]]
 seven_pairs :: [Int] -> [Hand]
-seven_pairs a | (length t) == 7 = [Twins t]
+seven_pairs a | (length t) == 7 = t
               | otherwise = []
-  where t = map fst $ filter ((== 2) . snd) $ histogram' a
+  where t = pick (toTwins . (:[]) . fst) ((== 2) . snd) (histogram a)
 
 -- 国士無双判定
 -- *Main> kokushi_muso [1,9,11,19,21,29,31,33,35,37,41,43,45,45]
 -- [Kokushi [45]]
 kokushi_muso :: [Int] -> [Hand]
-kokushi_muso a | (length p) == 14 && (length t) == 1 = [Kokushi t]
+kokushi_muso a | (length p) == 14 && (length t) == 1 = t
                | otherwise = []
-  where t = map fst $ filter ((== 2) . snd) $ histogram' a
+  where t = pick (toKokushi . (:[]) . fst) ((== 2) . snd) (histogram a)
         p = intersect a yaochu
 
 -- 雀頭候補を返す
 -- *Main> twins [1,1,2,2,3,3,4,4,5,5,5,6,6,6]
 -- [Twins [1],Twins [2],Twins [3],Twins [4],Twins [5],Twins [6]]
 twins :: [Int] -> [Hand]
-twins a = map (\x -> Twins $ [fst x]) $ filter ((>= 2) . snd) $ histogram' a
+twins a = pick (toTwins . (:[]) . fst) ((>= 2) . snd) (histogram a)
 
 -- 刻子候補を返す
 -- *Main> triplets [1,1,2,2,3,3,4,4,5,5,5,6,6,6]
 -- [Triplets [5],Triplets [6]]
 triplets :: [Int] -> [Hand]
-triplets a = map (\x -> Triplets $ [fst x]) $ filter ((>= 3) . snd) $ histogram' a
+triplets a = pick (toTriplets . (:[]) . fst) ((>= 3) . snd) (histogram a)
 
 -- 順子候補を返す
--- *Main> serials [1,1,2,2,3,3,4,4,5,5,5,6,6,6]
+-- *Main> series [1,1,2,2,3,3,4,4,5,5,5,6,6,6]
 -- [Series [1],Series [2],Series [3],Series [4]]
-serials :: [Int] -> [Hand]
-serials a = map (\(i,b) -> Series [i]) $ filter snd r
-  where h0@(_:h1@(_:h2)) = histogram a
-        r  = zip [0..] $ zipWith3 (\x y z -> x*y*z /= 0) h0 h1 h2
+series :: [Int] -> [Hand]
+series  a = pick (\(i,b) -> Series [i]) ((/= 0) . snd) (p $ histogram a)
+  where p = (\h0@(_:h1@(_:h2)) -> zipWith3 (\x y z -> x*y*z) h0 h1 h2)
 
 -- 差集合を返す(重複要素は残す)
 -- *Main> subset [1,1,2,2,3,3,4,4,5,5,6,6,7,7] [1,2,3]
@@ -127,7 +143,7 @@ show_hands :: [Hand] -> String
 show_hands hs = "[" ++ (concatMap show_hand hs) ++ "]"
 
 -- Handを文字列化する
--- *Main >  show_hand $ Triplets[11]
+-- *Main > show_hand $ Triplets[11]
 -- "[P1,P1,P1]"
 show_hand :: Hand -> String
 show_hand (Twins x)    = concatMap (\n -> toImage [n,n]) x
@@ -138,7 +154,7 @@ show_hand (Kokushi x)  = toImage $ sort $ yaochu ++ x
 
 -- 1メンツを文字列化する
 toImage :: [Int] -> String
-toImage x =  show_as_utf8 $ map ((!!) image) x
+toImage x = show_as_utf8 $ map ((!!) image) x
 
 -- アガリが成立する組み合せの集合を返す
 -- *Main> p $ solve [1,9,11,19,21,29,31,33,35,37,41,43,45,19]
@@ -160,8 +176,8 @@ solve a = filter (not . null) $ r1:r2:r3
   --         [Twins[9],Rest[1,1,19,20,21,31,43,44]]]
   where r1 = seven_pairs  a  -- 七対子判定
         r2 = kokushi_muso a  -- 国士無双判定
-        r3 = solve' body  -- 1雀頭+N面子判定
-        body = map (split . head . to_intarray) $ twins a
+        r3 = solve' body     -- 1雀頭+N面子判定
+        body = map (split . head . unbox) $ twins a
         split x = (Twins [x]):[Rest $ subset a [x,x]]
 
 -- 1雀頭+N面子を確定する
@@ -173,9 +189,9 @@ solve' hands | count == 0 = r0
              | otherwise  = solve' r0
   where r0 = nub $ breakdown hands -- nubを使って重複要素を削除する
         count = length $ filter has_rest r0
-        has_rest hs = case hs of (Rest _):_ -> True
-                                 _:xs -> has_rest xs
-                                 []   -> False
+        has_rest []           = False
+        has_rest ((Rest _):_) = True
+        has_rest (_:xs)       = has_rest xs
 
 -- Rest要素のメンツを1つ仮確定し、組み合わせを更新する
 -- *Main > p $ breakdown [[Twins[1],Series[2],Rest[5,5,5,6,6,6,7,7,7]]]
@@ -185,12 +201,13 @@ solve' hands | count == 0 = r0
 --     [Twins [1],Series [2,5],Rest [5,5,6,6,7,7]]
 breakdown :: [[Hand]] -> [[Hand]]
 breakdown xs = concatMap breakdown' xs
-breakdown' :: [Hand] -> [[Hand]]
-breakdown' hands = map (\x -> sorthands $ fixed ++ [x] ++ (rest' x)) candy
-    where  rest  = head $ find_rest hands
-           fixed = find_fixed hands
-           candy = find_mentsu_from $ to_intarray rest
-           rest' = remove_from rest
+  where breakdown' :: [Hand] -> [[Hand]]
+        breakdown' hands = map build candy
+           where fixed   = find_fixed hands
+                 candy   = find_mentsu_from $ unbox rest
+                 rest    = head $ find_rest hands
+                 rest'   = remove_from rest
+                 build x = sorthands $ fixed ++ [x] ++ (rest' x)
 
 -- Rest要素から仮確定したメンツを取り除く
 -- *Main > remove_from (Rest[5,5,5,6,6,6,7,7,7]) (Series[5])
@@ -200,21 +217,21 @@ breakdown' hands = map (\x -> sorthands $ fixed ++ [x] ++ (rest' x)) candy
 remove_from :: Hand -> Hand -> [Hand]
 remove_from hand candy | null array = []
                        | otherwise  = [Rest array]
-    where array = subset (to_intarray hand) (to_intarray candy)
+  where array = subset (unbox hand) (unbox candy)
 
 -- 未確定牌(Rest要素)の中にある刻子と順子を返す
 -- *Main > find_mentsu_from [5,5,5,6,6,6,7,7,7]
 -- [Triplets [5],Triplets [6],Triplets [7],Series [5]]
 find_mentsu_from :: [Int] -> [Hand]
-find_mentsu_from a = (triplets a) ++ (serials  a)
+find_mentsu_from a = (triplets a) ++ (series  a)
 
 -- 加算する
 addhand :: Hand -> Hand -> Hand
-addhand x y = Rest ((to_intarray x) ++ (to_intarray y))
+addhand x y = Rest ((unbox x) ++ (unbox y))
 
 -- 減算する
 subhand :: Hand -> Hand -> Hand
-subhand x y = Rest (subset (to_intarray x) (to_intarray y))
+subhand x y = Rest (subset (unbox x) (unbox y))
 
 -- 手牌の並びを正規化する
 -- *Main > sorthands $ twins [1,1,2,2,3,3,4,4,5,5,5,6,6,6]
@@ -224,26 +241,27 @@ subhand x y = Rest (subset (to_intarray x) (to_intarray y))
 sorthands :: [Hand] -> [Hand]
 sorthands x = (find_fixed x) ++ (find_rest x)
 
--- 手牌の中から未確定牌(Rest要素)を探し、マージした結果を返す
--- *Main> find_rest [Twins[1],Series[2],Rest[5,5,5,6,6,6,7,7,7]]
--- [Rest [5,5,5,6,6,6,7,7,7]]
-find_rest :: [Hand] -> [Hand]
-find_rest hands = if (null r) then [] else [Rest $ sort r]
-    where r = find_rest' [] hands
-find_rest' :: [Int] -> [Hand] -> [Int]
-find_rest' r hs = case hs of x@(Rest _):xs -> find_rest' (r ++ (to_intarray x)) xs
-                             _:xs -> find_rest' r xs
-                             []   -> r
-
 -- 手牌の中から確定牌(Rest要素以外)を探して返す
 -- *Main> find_fixed [Twins[1],Series[2],Rest[5,5,5,6,6,6,7,7,7]]
 -- [Twins [1],Series [2]]
 find_fixed :: [Hand] -> [Hand]
 find_fixed x = kokushi ++ twins ++ triplets ++ series
-    where kokushi  = find_kokushi x
-          twins    = find_twins x
-          triplets = find_triplets x
-          series   = find_series x
+  where kokushi  = find_kokushi  x
+        twins    = find_twins    x
+        triplets = find_triplets x
+        series   = find_series   x
+
+-- 手牌の中から未確定牌(Rest要素)を探し、マージした結果を返す
+-- *Main> find_rest [Twins[1],Series[2],Rest[5,5,5,6,6,6,7,7,7]]
+-- [Rest [5,5,5,6,6,6,7,7,7]]
+find_rest :: [Hand] -> [Hand]
+find_rest hands | null r    = []
+                | otherwise = [Rest $ sort r]
+  where r = find_rest' [] hands
+        find_rest' :: [Int] -> [Hand] -> [Int]
+        find_rest' r []              = r
+        find_rest' r (x@(Rest _):xs) = find_rest' (r ++ (unbox x)) xs
+        find_rest' r (_:xs)          = find_rest' r xs
 
 -- 手牌の中からTwins要素を探し、マージした結果を返す
 -- *Main> find_twins [Twins[1],Twins[11,15],Twins[21],Series[2],Rest[5,7,9]]
@@ -251,11 +269,11 @@ find_fixed x = kokushi ++ twins ++ triplets ++ series
 find_twins :: [Hand] -> [Hand]
 find_twins hands | null r    = []
                  | otherwise = [Twins $ sort r]
-    where r = find_twins' [] hands
-find_twins' :: [Int] -> [Hand] -> [Int]
-find_twins' r hs = case hs of x@(Twins m):xs -> find_twins' (r ++ m) xs
-                              _:xs -> find_twins' r xs
-                              []   -> r
+  where r = find_twins' [] hands
+        find_twins' :: [Int] -> [Hand] -> [Int]
+        find_twins' r []               = r
+        find_twins' r (x@(Twins m):xs) = find_twins' (r ++ m) xs
+        find_twins' r (_:xs)           = find_twins' r xs
 
 -- 手牌の中からTriplets要素を探し、マージした結果を返す
 -- *Main> find_triplets [Twins[1],Triplets[11],Triplets[21],Series[2],Rest[5,7,9]]
@@ -263,11 +281,11 @@ find_twins' r hs = case hs of x@(Twins m):xs -> find_twins' (r ++ m) xs
 find_triplets :: [Hand] -> [Hand]
 find_triplets hands | null r    = []
                     | otherwise = [Triplets $ sort r]
-    where r = find_triplets' [] hands
-find_triplets' :: [Int] -> [Hand] -> [Int]
-find_triplets' r hs = case hs of x@(Triplets m):xs -> find_triplets' (r ++ m) xs
-                                 _:xs -> find_triplets' r xs
-                                 []   -> r
+  where r = find_triplets' [] hands
+        find_triplets' :: [Int] -> [Hand] -> [Int]
+        find_triplets' r []                  = r
+        find_triplets' r (x@(Triplets m):xs) = find_triplets' (r ++ m) xs
+        find_triplets' r (_:xs)              = find_triplets' r xs
 
 -- 手牌の中からSeries要素を探し、マージした結果を返す
 -- *Main> find_series [Twins[1],Triplets[11],Series[21],Series[2],Rest[5,7,9]]
@@ -275,11 +293,11 @@ find_triplets' r hs = case hs of x@(Triplets m):xs -> find_triplets' (r ++ m) xs
 find_series :: [Hand] -> [Hand]
 find_series hands | null r    = []
                   | otherwise = [Series $ sort r]
-    where r = find_series' [] hands
-find_series' :: [Int] -> [Hand] -> [Int]
-find_series' r hs = case hs of x@(Series m):xs -> find_series' (r ++ m) xs
-                               _:xs -> find_series' r xs
-                               []   -> r
+  where r = find_series' [] hands
+        find_series' :: [Int] -> [Hand] -> [Int]
+        find_series' r []                = r
+        find_series' r (x@(Series m):xs) = find_series' (r ++ m) xs
+        find_series' r (_:xs)            = find_series' r xs
 
 -- 手牌の中からKokushi要素を探して返す
 -- 手牌の中のKokushi要素は高々1つしか無いはず。
@@ -288,11 +306,11 @@ find_series' r hs = case hs of x@(Series m):xs -> find_series' (r ++ m) xs
 find_kokushi :: [Hand] -> [Hand]
 find_kokushi hands | null r    = []
                    | otherwise = [Kokushi $ sort r]
-    where r = find_kokushi' hands
-find_kokushi' :: [Hand] -> [Int]
-find_kokushi' hs = case hs of x@(Kokushi m):xs -> m
-                              _:xs -> find_kokushi' xs
-                              []   -> []
+  where r = find_kokushi' hands
+        find_kokushi' :: [Hand] -> [Int]
+        find_kokushi' []                 = []
+        find_kokushi' (x@(Kokushi m):xs) = m
+        find_kokushi' (_:xs)             = find_kokushi' xs
 
 -- 実行結果を出力するための共通サービス関数
 generic_p :: ([Hand] -> String) -> [[Hand]] -> IO ()
