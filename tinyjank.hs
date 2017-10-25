@@ -10,11 +10,11 @@ import Data.List
 image :: [String]
 image =  [
     -- 端末が漢字表示に対応している場合はこちらの image を使用する。
-    "■", "一", "二", "三", "四", "五", "六", "七", "八", "九",  -- 萬子
-    "■", "①", "②", "③", "④", "⑤", "⑥", "⑦", "⑧", "⑨",  -- 筒子
-    "■", "Ⅰ", "Ⅱ", "Ⅲ", "Ⅳ", "Ⅴ", "Ⅵ", "Ⅶ", "Ⅷ", "Ⅸ",  -- 索子
-    "■", "東", "■", "南", "■", "西", "■", "北", "■", "■",  -- 風牌
-    "■", "白", "■", "発", "■", "中"                         -- 三元牌
+    "00", "一", "二", "三", "四", "五", "六", "七", "八", "九",  -- 萬子
+    "10", "①", "②", "③", "④", "⑤", "⑥", "⑦", "⑧", "⑨",  -- 筒子
+    "20", "Ⅰ", "Ⅱ", "Ⅲ", "Ⅳ", "Ⅴ", "Ⅵ", "Ⅶ", "Ⅷ", "Ⅸ",  -- 索子
+    "30", "東", "32", "南", "34", "西", "36", "北", "38", "39",  -- 風牌
+    "40", "白", "42", "發", "44", "中"                         -- 三元牌
     {-
     -- 端末が漢字表示に対応していない場合はこちらの image を使用する。
     "00", "M1", "M2", "M3", "M4", "M5", "M6", "M7", "M8", "M9",  -- 萬子
@@ -91,29 +91,28 @@ show_hand (Series x)   = concatMap (\n -> to_string [n,n+1,n+2]) x
 show_hand (Rest x)     = to_string $ sort x
 show_hand (Kokushi x)  = to_string $ sort $ yaochu ++ x
 
--- [[Hand]]を文字列化する
--- *Main > show_hands_array [[Triplets[22]],[Twins[19]]]
--- ["[[S2,S2,S2]]","[[P9,P9]]"]
-show_hands_array :: [[Hand]] -> [String]
-show_hands_array a = map show_hands a
-
 -- [Hand]を文字列化する
 -- *Main > show_hands [Kokushi [19]]
 -- "[[M1,M9,P1,P9,P9,S1,S9,We,Ws,Ww,Wn,Dw,Dg,Dr]]"
 show_hands :: [Hand] -> String
 show_hands hs = "[" ++ (concatMap show_hand hs) ++ "]"
 
+-- [[Hand]]を文字列化する
+-- *Main > show_hands_array [[Triplets[22]],[Twins[19]]]
+-- ["[[S2,S2,S2]]","[[P9,P9]]"]
+show_hands_array :: [[Hand]] -> [String]
+show_hands_array a = map show_hands a
+
 -- ヒストグラムを返す
 -- *Main> histogram [1,9,11,19,21,29,31,33,35,37,41,43,45,45]
 -- [0,1,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0,0,1,0,...,0,1,0,1,0,2]
-histogram  :: [Int] -> [Int]
-histogram  a = map (\n -> length $ filter (== n) a) range
+histogram :: [Int] -> [Int]
+histogram a = map (\n -> length $ filter (== n) a) range
 
 -- Hand抽出関数
 -- cons : Handコンストラクタ
 -- cond : タプルの抽出条件
 -- hs   : ヒストグラム
--- pick :: ((Int,Int) -> Hand) -> ((Int,Int) -> Bool) -> [Int] -> [Hand]
 pick :: ([Int] -> Hand) -> ((Int,Int) -> Bool) -> [Int] -> [Hand]
 pick cons cond hs = map (cons . (:[]) . fst) $ filter cond $ zip [0..] hs
 
@@ -182,10 +181,10 @@ solve body = filter (not . null) $ r1:r2:r3
 -- *Main > solve' [[Twins[1],Rest[14,14,15,15,16,16,18,18,18]]]
 -- [[Twins [1],Triplets [18],Series [14,14]]]
 solve' :: [[Hand]] -> [[Hand]]
-solve' hands | count == 0 = r0
-             | otherwise  = solve' r0
-  where r0 = nub $ concatMap breakdown hands -- nubを使って重複要素を削除する
-        count = length $ filter has_rest r0
+solve' hands | count == 0 = r
+             | otherwise  = solve' r
+  where r = nub $ concatMap breakdown hands -- nubを使って重複要素を削除する
+        count = length $ filter has_rest r
         has_rest []           = False
         has_rest ((Rest _):_) = True
         has_rest (_:xs)       = has_rest xs
