@@ -129,7 +129,7 @@ kokushi_muso a | (length p) == 14 && (length t) == 1 = t
 -- *Main> seven_pairs [1,1,2,2,3,3,4,4,5,5,6,6,7,7]
 -- [Twins [1,2,3,4,5,6,7]]
 seven_pairs :: [Int] -> [Hand]
-seven_pairs a | (length t) == 7 = t
+seven_pairs a | (length t) == 7 = sorthands $ t
               | otherwise = []
   where t = pick (Twins . (:[]) . fst) ((== 2) . snd) (histogram a)
 
@@ -211,9 +211,9 @@ breakdown xs = concatMap breakdown' xs
 -- *Main > remove_from (Rest[5,5,5,6,6,6,7,7,7]) (Triplets[5])
 -- [Rest [6,6,6,7,7,7]]
 remove_from :: Hand -> Hand -> [Hand]
-remove_from hand candy | null array = []
-                       | otherwise  = [Rest array]
-  where array = subset (unbox hand) (unbox candy)
+remove_from hand candy | null r    = []
+                       | otherwise = [Rest $ sort r]
+  where r = subset (unbox hand) (unbox candy)
 
 -- 手牌の並びを正規化する
 -- *Main > sorthands $ twins [1,1,2,2,3,3,4,4,5,5,5,6,6,6]
