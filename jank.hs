@@ -30,10 +30,10 @@ show_as_utf8 :: Show a => a -> String
 show_as_utf8 x = cons (show x)
   where cons :: String -> String
         cons [] = []
-        cons m@('\"':xs) = str ++ (cons rest)
-             where (str,rest):_   = reads m
-        cons m@('\'':xs) = '\'':char:'\'':(cons rest')
-             where (char,rest'):_ = reads m
+        cons m@('\"':xs) = s ++ (cons r)
+             where (s,r):_   = reads m
+        cons m@('\'':xs) = '\'':s:'\'':(cons r)
+             where (s,r):_ = reads m
         cons m@(x:xs)    = x:cons xs
 
 -- 牌種データ
@@ -58,13 +58,25 @@ data Mentsu = Kokushi  -- 国士 [1,1,9,...,43,45] => (Kokushi,[1])
 type Hand  = (Mentsu,[Int])
 type Hands = [Hand]
 
+-- Handsコンストラクタ
+cTwins    :: [Int] -> Hand -- cTwins [1]    => (Twins, [1])
+cTriplets :: [Int] -> Hand -- cTriplets [1] => (Triplets, [1])
+cSeries   :: [Int] -> Hand -- cSeries [1]   => (Series, [1])
+cRest     :: [Int] -> Hand -- cRest [1,3,5] => (Rest, [1,3,5])
+cKokushi  :: [Int] -> Hand -- cKokushi [1]  => (Kokushi, [1])
+cTwins    x = (Twins, x)
+cTriplets x = (Triplets, x)
+cSeries   x = (Series, x)
+cRest     x = (Rest, x)
+cKokushi  x = (Kokushi, x)
+
 -- Handを[Int]に変換する
 unbox :: Hand -> [Int]
-unbox (Twins,x)    = x ++ x
-unbox (Triplets,x) = x ++ x ++ x
-unbox (Series,x)   = foldr (\i -> (++) [i,i+1,i+2]) [] x
-unbox (Rest,x)     = x
-unbox (Kokushi,x)  = yaochu ++ x
+unbox (Twins,x)    = sort $ x ++ x
+unbox (Triplets,x) = sort $ x ++ x ++ x
+unbox (Series,x)   = sort $ foldr (\i -> (++) [i,i+1,i+2]) [] x
+unbox (Rest,x)     = sort $ x
+unbox (Kokushi,x)  = sort $ yaochu ++ x
 
 -- [Int]の差集合を返す(重複要素は残す)
 -- *Main> subset [1,1,2,2,3,3,4,4,5,5,6,6,7,7] [1,2,3]
@@ -219,8 +231,8 @@ remove_from rest mentsu | null r    = []
 -- 手牌の並びを正規化する
 -- *Main > sorthands $ pick_twins [1,1,2,2,3,3,4,4,5,5,5,6,6,6]
 -- [(Twins,[1,2,3,4,5,6])]
--- *Main > sorthands [(Twins,[1]),(Series,[2]),(Rest,[5,7]),(Rest,[6,6,6]),(Twins,[7,5])]
--- [(Twins,[1,5,7]),(Series,[2]),(Rest,[5,6,6,6,7])]
+-- *Main > sorthands [(Twins,[1]),(Rest,[5,7]),(Rest,[6]),(Twins,[7,5])]
+-- [(Twins,[1,5,7]),(Rest,[5,6,7])]
 sorthands :: Hands -> Hands
 sorthands x = (find_fixed x) ++ (find_rest x)
 
@@ -231,7 +243,7 @@ find_trio :: [Int] -> Hands
 find_trio a = (pick_triplets a) ++ (pick_series a)
 
 -- 手牌の中から確定牌(Rest要素以外)を探して返す
--- *Main> find_fixed [(Twins,[1]),(Series,[2]),(Rest,[5,5,5,6,6,6,7,7,7])]
+-- *Main> find_fixed [(Twins,[1]),(Series,[2]),(Rest,[4,7,9])]
 -- [(Twins,[1]),(Series,[2])]
 find_fixed :: Hands -> Hands
 find_fixed x = r1 ++ r2 ++ r3 ++ r4
@@ -241,8 +253,8 @@ find_fixed x = r1 ++ r2 ++ r3 ++ r4
         r4 = find_series   x
 
 -- 手牌の中から未確定牌(Rest要素)を探し、マージした結果を返す
--- *Main> find_rest [(Twins,[1]),(Series,[2]),(Rest,[5,5,5,6,6,6,7,7,7])]
--- [(Rest,[5,5,5,6,6,6,7,7,7])]
+-- *Main> find_rest [(Twins,[1]),(Series,[2]),(Rest,[5,5,6,6,7,7])]
+-- [(Rest,[5,5,6,6,7,7])]
 find_rest :: Hands -> Hands
 find_rest hands | null r    = []
                 | otherwise = [(Rest,sort r)]
@@ -253,8 +265,8 @@ find_rest hands | null r    = []
         find_rest' r (_:xs)          = find_rest' r xs
 
 -- 手牌の中からTwins要素を探し、マージした結果を返す
--- *Main> find_twins [(Twins,[1]),(Twins,[11,15]),(Twins,[21]),(Series,[2]),(Rest,[5,7,9])]
--- [(Twins,[1,11,15,21])]
+-- *Main> find_twins [(Twins,[11,15]),(Twins,[21])(Rest,[5,7,9])]
+-- [(Twins,[11,15,21])]
 find_twins :: Hands -> Hands
 find_twins hands | null r    = []
                  | otherwise = [(Twins,sort r)]
@@ -265,8 +277,8 @@ find_twins hands | null r    = []
         find_twins' r (_:xs)           = find_twins' r xs
 
 -- 手牌の中からTriplets要素を探し、マージした結果を返す
--- *Main> find_triplets [(Twins,[1]),(Triplets,[11]),(Triplets,[21]),(Series,[2]),(Rest,[5,7,9])]
--- [Triplets [11,21]]
+-- *Main> find_triplets [(Twins,[1]),(Triplets,[2]),(Triplets,[4])(Rest,[5,7,9])]
+-- [Triplets [2,4]]
 find_triplets :: Hands -> Hands
 find_triplets hands | null r    = []
                     | otherwise = [(Triplets,sort r)]
@@ -277,7 +289,7 @@ find_triplets hands | null r    = []
         find_triplets' r (_:xs)              = find_triplets' r xs
 
 -- 手牌の中からSeries要素を探し、マージした結果を返す
--- *Main> find_series [(Twins,[1]),(Triplets,[11]),(Series,[21]),(Series,[2]),(Rest,[5,7,9])]
+-- *Main> find_series [(Twins,[1]),(Triplets,[11]),(Series,[21]),(Series,[2])]
 -- [(Series,[2,21])]
 find_series :: Hands -> Hands
 find_series hands | null r    = []
