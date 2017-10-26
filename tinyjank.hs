@@ -2,7 +2,7 @@
 
 -- 機能: 麻雀の役判定と点数計算
 -- 作成: 2017-10-19  ken3@nurs.or.jp
--- 更新: 2017-10-25  ken3@nurs.or.jp
+-- 更新: 2017-10-26  ken3@nurs.or.jp
 
 import Data.List
 
@@ -49,11 +49,12 @@ greens = [22,23,24,26,28,43]
 range  = map fst $ zip [0..] image
 
 -- 手牌の組み合わせ
-data Hand  = Twins    [Int] |
-             Triplets [Int] |
-             Series   [Int] |
-             Rest     [Int] |
-             Kokushi  [Int] deriving (Show, Eq, Ord)
+data Hand  = Kokushi  [Int]  -- 国士 [1,1,9,...,43,45] => Kokushi [1]
+           | Twins    [Int]  -- 対子 [1,1]   => Twins [1]
+           | Triplets [Int]  -- 刻子 [1,1,1] => Triplets [1]
+           | Series   [Int]  -- 順子 [1,2,3] => Series [1]
+           | Rest     [Int]  -- 残り [11,27] => Rest [11,27]
+             deriving (Show, Eq, Ord)
 
 -- Handを[Int]に変換する
 unbox :: Hand -> [Int]
@@ -117,39 +118,39 @@ pick :: ([Int] -> Hand) -> ((Int,Int) -> Bool) -> [Int] -> [Hand]
 pick cons cond hs = map (cons . (:[]) . fst) $ filter cond $ zip [0..] hs
 
 -- 国士無双判定
--- *Main> kokushi_muso [1,9,11,19,21,29,31,33,35,37,41,43,45,45]
+-- *Main> pick_kokushi [1,9,11,19,21,29,31,33,35,37,41,43,45,45]
 -- [Kokushi [45]]
-kokushi_muso :: [Int] -> [Hand]
-kokushi_muso body | (length p) == 14 && (length t) == 1 = t
+pick_kokushi :: [Int] -> [Hand]
+pick_kokushi body | (length p) == 14 && (length t) == 1 = t
                   | otherwise = []
   where t = pick Kokushi ((== 2) . snd) (histogram body)
         p = intersect body yaochu
 
 -- 七対子判定
--- *Main> seven_pairs [1,1,2,2,3,3,4,4,5,5,6,6,7,7]
+-- *Main> pick_7pairs [1,1,2,2,3,3,4,4,5,5,6,6,7,7]
 -- [Twins [1,2,3,4,5,6,7]]
-seven_pairs :: [Int] -> [Hand]
-seven_pairs body | (length t) == 7 = sorthands $ t
+pick_7pairs :: [Int] -> [Hand]
+pick_7pairs body | (length t) == 7 = sorthands $ t
                  | otherwise = []
   where t = pick Twins ((== 2) . snd) (histogram body)
 
 -- 雀頭候補を返す
--- *Main> twins [1,1,2,2,3,3,4,4,5,5,5,6,6,6]
+-- *Main> pick_twins [1,1,2,2,3,3,4,4,5,5,5,6,6,6]
 -- [Twins [1],Twins [2],Twins [3],Twins [4],Twins [5],Twins [6]]
-twins :: [Int] -> [Hand]
-twins body = pick Twins ((>= 2) . snd) (histogram body)
+pick_twins :: [Int] -> [Hand]
+pick_twins body = pick Twins ((>= 2) . snd) (histogram body)
 
 -- 刻子候補を返す
--- *Main> triplets [1,1,2,2,3,3,4,4,5,5,5,6,6,6]
+-- *Main> pick_triplets [1,1,2,2,3,3,4,4,5,5,5,6,6,6]
 -- [Triplets [5],Triplets [6]]
-triplets :: [Int] -> [Hand]
-triplets body = pick Triplets ((>= 3) . snd) (histogram body)
+pick_triplets :: [Int] -> [Hand]
+pick_triplets body = pick Triplets ((>= 3) . snd) (histogram body)
 
 -- 順子候補を返す
--- *Main> series [1,1,2,2,3,3,4,4,5,5,5,6,6,6]
+-- *Main> pick_series [1,1,2,2,3,3,4,4,5,5,5,6,6,6]
 -- [Series [1],Series [2],Series [3],Series [4]]
-series :: [Int] -> [Hand]
-series body = pick Series ((/= 0) . snd) (product3 $ histogram body)
+pick_series :: [Int] -> [Hand]
+pick_series body = pick Series ((/= 0) . snd) (product3 $ histogram body)
   where product3 h0@(_:h1@(_:h2)) = zipWith3 (\x y z -> x*y*z) h0 h1 h2
 
 -- アガリが成立する組み合せの集合を返す
@@ -170,10 +171,10 @@ solve body = filter (not . null) $ r1:r2:r3
   -- ts    = [[1,1],[9,9]]
   -- hands = [[Twins[1],Rest[9,9,19,20,21,31,43,44]],
   --          [Twins[9],Rest[1,1,19,20,21,31,43,44]]]
-  where r1 = seven_pairs  body  -- 七対子判定
-        r2 = kokushi_muso body  -- 国士無双判定
+  where r1 = pick_7pairs  body  -- 七対子判定
+        r2 = pick_kokushi body  -- 国士無双判定
         r3 = solve' hands       -- 1雀頭+N面子判定
-        hands   = map (split . head . unbox) $ twins body
+        hands   = map (split . head . unbox) $ pick_twins body
         split x = (Twins [x]):[Rest $ subset body [x,x]]
 
 -- 1雀頭+N面子を確定する
@@ -198,7 +199,7 @@ solve' hands | count == 0 = r
 breakdown :: [Hand] -> [[Hand]]
 breakdown hands = map apply mentsu
   where fixed   = find_fixed hands
-        mentsu  = find_mentsu_from $ unbox rest
+        mentsu  = find_trio $ unbox rest
         rest    = head $ find_rest hands
         rest'   = remove_from rest
         apply x = sorthands $ fixed ++ [x] ++ (rest' x)
@@ -214,7 +215,7 @@ remove_from rest mentsu | null r    = []
   where r = subset (unbox rest) (unbox mentsu)
 
 -- 手牌の並びを正規化する
--- *Main > sorthands $ twins [1,1,2,2,3,3,4,4,5,5,5,6,6,6]
+-- *Main > sorthands $ pick_twins [1,1,2,2,3,3,4,4,5,5,5,6,6,6]
 -- [Twins [1,2,3,4,5,6]]
 -- *Main > sorthands [Twins[1],Series[2],Rest[5,7],Rest[6,6,6],Twins[7,5]]
 -- [Twins [1,5,7],Series [2],Rest [5,6,6,6,7]]
@@ -222,20 +223,20 @@ sorthands :: [Hand] -> [Hand]
 sorthands x = (find_fixed x) ++ (find_rest x)
 
 -- 未確定牌(Rest要素)の中にある刻子と順子を返す
--- *Main > find_mentsu_from [5,5,5,6,6,6,7,7,7]
+-- *Main > find_trio [5,5,5,6,6,6,7,7,7]
 -- [Triplets [5],Triplets [6],Triplets [7],Series [5]]
-find_mentsu_from :: [Int] -> [Hand]
-find_mentsu_from a = (triplets a) ++ (series  a)
+find_trio :: [Int] -> [Hand]
+find_trio a = (pick_triplets a) ++ (pick_series a)
 
 -- 手牌の中から確定牌(Rest要素以外)を探して返す
 -- *Main> find_fixed [Twins[1],Series[2],Rest[5,5,5,6,6,6,7,7,7]]
 -- [Twins [1],Series [2]]
 find_fixed :: [Hand] -> [Hand]
-find_fixed x = kokushi ++ twins ++ triplets ++ series
-  where kokushi  = find_kokushi  x
-        twins    = find_twins    x
-        triplets = find_triplets x
-        series   = find_series   x
+find_fixed x = r1 ++ r2 ++ r3 ++ r4
+  where r1 = find_kokushi  x
+        r2 = find_twins    x
+        r3 = find_triplets x
+        r4 = find_series   x
 
 -- 手牌の中から未確定牌(Rest要素)を探し、マージした結果を返す
 -- *Main> find_rest [Twins[1],Series[2],Rest[5,5,5,6,6,6,7,7,7]]
