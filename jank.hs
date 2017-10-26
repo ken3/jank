@@ -72,11 +72,13 @@ cKokushi  x = (Kokushi, x)
 
 -- Handを[Int]に変換する
 unbox :: Hand -> [Int]
-unbox (Twins,x)    = sort $ x ++ x
-unbox (Triplets,x) = sort $ x ++ x ++ x
-unbox (Series,x)   = sort $ foldr (\i -> (++) [i,i+1,i+2]) [] x
-unbox (Rest,x)     = sort $ x
-unbox (Kokushi,x)  = sort $ yaochu ++ x
+unbox h = sort $ unbox' h
+  where unbox' :: Hand -> [Int]
+        unbox' (Twins,x)    = x ++ x
+        unbox' (Triplets,x) = x ++ x ++ x
+        unbox' (Series,x)   = foldr (\i -> (++) [i,i+1,i+2]) [] x
+        unbox' (Rest,x)     = x
+        unbox' (Kokushi,x)  = yaochu ++ x
 
 -- [Int]の差集合を返す(重複要素は残す)
 -- *Main> subset [1,1,2,2,3,3,4,4,5,5,6,6,7,7] [1,2,3]
@@ -137,7 +139,7 @@ pick cons cond hs = map (cons . (:[]) . fst) $ filter cond $ zip [0..] hs
 pick_kokushi :: [Int] -> Hands
 pick_kokushi body | (length p) == 14 && (length t) == 1 = t
                   | otherwise = []
-  where t = pick ((,) Kokushi) ((== 2) . snd) (histogram body)
+  where t = pick cKokushi ((== 2) . snd) (histogram body)
         p = intersect body yaochu
 
 -- 七対子判定
@@ -146,25 +148,25 @@ pick_kokushi body | (length p) == 14 && (length t) == 1 = t
 pick_7pairs :: [Int] -> Hands
 pick_7pairs body | (length t) == 7 = sorthands $ t
                  | otherwise = []
-  where t = pick ((,) Twins) ((== 2) . snd) (histogram body)
+  where t = pick cTwins ((== 2) . snd) (histogram body)
 
 -- 雀頭候補を返す
 -- *Main> pick_twins [1,1,2,2,3,3,4,4,5,5,5,6,6,6]
 -- [(Twins,[1]),(Twins,[2]),(Twins,[3]),(Twins,[4]),(Twins,[5]),(Twins,[6])]
 pick_twins :: [Int] -> Hands
-pick_twins body = pick ((,) Twins) ((>= 2) . snd) (histogram body)
+pick_twins body = pick cTwins ((>= 2) . snd) (histogram body)
 
 -- 刻子候補を返す
 -- *Main> pick_triplets [1,1,2,2,3,3,4,4,5,5,5,6,6,6]
 -- [(Triplets,[5]),(Triplets,[6])]
 pick_triplets :: [Int] -> Hands
-pick_triplets body = pick ((,) Triplets) ((>= 3) . snd) (histogram body)
+pick_triplets body = pick cTriplets ((>= 3) . snd) (histogram body)
 
 -- 順子候補を返す
 -- *Main> pick_series [1,1,2,2,3,3,4,4,5,5,5,6,6,6]
 -- [(Series,[1]),(Series,[2]),(Series,[3]),(Series,[4])]
 pick_series :: [Int] -> Hands
-pick_series body = pick ((,) Series) ((/= 0) . snd) (product3 $ histogram body)
+pick_series body = pick cSeries ((/= 0) . snd) (product3 $ histogram body)
   where product3 h0@(_:h1@(_:h2)) = zipWith3 (\x y z -> x*y*z) h0 h1 h2
 
 -- アガリが成立する組み合せの集合を返す
@@ -212,11 +214,10 @@ solve' hands | count == 0 = r
 --     [(Twins,[1]),(Series,[2,5]),(Rest,[5,5,6,6,7,7])]
 breakdown :: [Hand] -> [Hands]
 breakdown hands = map apply mentsu
-  where fixed   = find_fixed hands
-        mentsu  = find_trio $ unbox rest
-        rest    = head $ find_rest hands
-        rest'   = remove_from rest
-        apply x = sorthands $ fixed ++ [x] ++ (rest' x)
+  where r       = head $ find_rest hands
+        fixed   = find_fixed hands
+        mentsu  = find_trio $ unbox r
+        apply x = sorthands $ fixed ++ [x] ++ (remove_from r x)
 
 -- Rest要素から仮確定したメンツを取り除く
 -- *Main > remove_from (Rest,[5,5,5,6,6,6,7,7,7]) (Series,[5])
@@ -224,9 +225,9 @@ breakdown hands = map apply mentsu
 -- *Main > remove_from (Rest,[5,5,5,6,6,6,7,7,7]) (Triplets,[5])
 -- [(Rest,[6,6,6,7,7,7])]
 remove_from :: Hand -> Hand -> Hands
-remove_from rest mentsu | null r    = []
-                        | otherwise = [(Rest,sort r)]
-  where r = subset (unbox rest) (unbox mentsu)
+remove_from target mentsu | null r    = []
+                          | otherwise = [(Rest,sort r)]
+  where r = subset (unbox target) (unbox mentsu)
 
 -- 手牌の並びを正規化する
 -- *Main > sorthands $ pick_twins [1,1,2,2,3,3,4,4,5,5,5,6,6,6]
