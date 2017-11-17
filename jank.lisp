@@ -145,11 +145,11 @@
 (defun make-series (v) (list v (+ 1 v) (+ 2 v)))
 (defun unbox* (k h)
   (if (listp h)
-    (cond ((eq k 'Twins)    (concat (mapcar (lambda (x) (list x x)) h)))
+    (cond ((eq k 'Twins) (concat (mapcar (lambda (x) (list x x)) h)))
           ((eq k 'Triplets) (concat (mapcar (lambda (x) (list x x x)) h)))
-          ((eq k 'Series)   (concat (mapcar #'make-series h)))
-          ((eq k 'Free)     h)
-          ((eq k 'Kokushi)  (sort-list (cons (car h) yaochu)))
+          ((eq k 'Series) (concat (mapcar #'make-series h)))
+          ((eq k 'Free) h)
+          ((eq k 'Kokushi) (sort-list (cons (car h) yaochu)))
           (t nil)) nil))
 (defun unbox (hand)
   (let* ((r (sort-list (unbox* (car hand) (cdr hand))))
@@ -179,41 +179,41 @@
   (Free (subset (unbox x) (unbox y))))
 
 ;; [Int]を文字列化する
-;; to_string :: [Int] -> String
-(defun to_string (x)
+;; to-string :: [Int] -> String
+(defun to-string (x)
   (format nil "~A" (mapcar (lambda (i) (nth i image)) x)))
 
 ;; Handを文字列化する
-;; show_hand :: Hand -> String
-;; (show_hand '(Twins (2 7 11 18 25 35 43)))
+;; show-hand :: Hand -> String
+;; (show-hand '(Twins (2 7 11 18 25 35 43)))
 ;; -> "(二 二)(七 七)(① ①)(⑧ ⑧)(Ⅴ Ⅴ)(西 西)(發 發)"
-;; (show_hand '(Triplets 35))
+;; (show-hand '(Triplets 35))
 ;; -> "(西 西 西)"
-;; (show_hand '(Series 11))
+;; (show-hand '(Series 11))
 ;; -> "(① ② ③)"
-;; (show_hand '(Free 7 11 15 21 33))
+;; (show-hand '(Free 7 11 15 21 33))
 ;; -> "(七 ① ⑤ Ⅰ 南)"
-;; (show_hand '(Kokushi 11))
+;; (show-hand '(Kokushi 11))
 ;; -> "(一 九 ① ① ⑨ Ⅰ Ⅸ 東 南 西 北 白 發 中)"
-(defun show_list (list)
+(defun show-list (list)
   (reduce (lambda (r x) (concatenate 'string r x)) list :from-end t :initial-value ""))
-(defun show_hand* (fn hand)
+(defun show-hand* (fn hand)
   (let ((c (cadr hand)))
-    (cond ((integerp c) (show_list (mapcar fn (cdr hand))))
-          ((listp c) (show_list (mapcar fn c)))
+    (cond ((integerp c) (show-list (mapcar fn (cdr hand))))
+          ((listp c) (show-list (mapcar fn c)))
           (t nil))))
-(defun show_hand (hand)
+(defun show-hand (hand)
   (let ((type (car hand))
         (c (cadr hand)))
     (cond
-      ((eq type 'Twins) (show_hand* (lambda (x) (to_string (list x x))) hand))
-      ((eq type 'Triplets) (show_hand* (lambda (x) (to_string (list x x x))) hand))
-      ((eq type 'Series)(show_hand* (lambda (x) (to_string (make-series x))) hand))
-      ((eq type 'Free) (cond ((integerp c)(to_string (cdr hand)))
-                              ((listp c)(to_string c))
+      ((eq type 'Twins) (show-hand* (lambda (x) (to-string (list x x))) hand))
+      ((eq type 'Triplets) (show-hand* (lambda (x) (to-string (list x x x))) hand))
+      ((eq type 'Series)(show-hand* (lambda (x) (to-string (make-series x))) hand))
+      ((eq type 'Free) (cond ((integerp c)(to-string (cdr hand)))
+                              ((listp c)(to-string c))
                               (t nil)))
       ((eq type 'Kokushi) (let ((h (if (listp c) (car c) c)))
-                            (to_string (sort-list (cons h yaochu))))) (t nil))))
+                            (to-string (sort-list (cons h yaochu))))) (t nil))))
 
 ;; ヒストグラムを返す
 ;; * (histogram '(1 9 11 19 21 29 31 33 35 37 41 43 45 45))
@@ -223,154 +223,154 @@
   (mapcar (lambda (n) (length (remove-if-not (lambda (x) (eql n x)) a))) range))
 
 ;; 国士無双判定
-;; pick_kokushi :: [Int] -> Hands
-;; * (pick_kokushi '(1 9 11 19 21 29 31 33 35 37 41 43 45 45))
+;; pick-kokushi :: [Int] -> Hands
+;; * (pick-kokushi '(1 9 11 19 21 29 31 33 35 37 41 43 45 45))
 ;; -> ((KOKUSHI 45))
-(defun pick_kokushi (body)
+(defun pick-kokushi (body)
   (let* ((p (intersection body yaochu))
          (u (remove-duplicates p))
          (d (subset p u)))
     (if (and (eql (length p) 14) (eql (length u) 13)) (list (Kokushi d)) nil)))
 
 ;; 七対子判定
-;; pick_7pairs :: [Int] -> Hands
-;; * (pick_7pairs '(1 1 2 2 3 3 4 4 5 5 6 6 7 7))
+;; pick-7pairs :: [Int] -> Hands
+;; * (pick-7pairs '(1 1 2 2 3 3 4 4 5 5 6 6 7 7))
 ;; -> (TWINS 1 2 3 4 5 6 7)
-(defun pick_7pairs (body)
+(defun pick-7pairs (body)
   (let* ((h (zip range (histogram body)))
          (p (mapcar #'car (remove-if-not (lambda (x) (eql (cadr x) 2)) h))))
     (if (eql (length p) 7) (list (Twins p)) nil)))
 
 ;; 雀頭候補を返す
-;; pick_twins :: [Int] -> Hands
-;; * (pick_twins '(1 1 2 2 3 3 4 4 5 5 5 6 6 6))
+;; pick-twins :: [Int] -> Hands
+;; * (pick-twins '(1 1 2 2 3 3 4 4 5 5 5 6 6 6))
 ;; -> ((Twins 1) (Twins 2) (Twins 3) (Twins 4) (Twins 5) (Twins 6))
-(defun pick_twins (body)
+(defun pick-twins (body)
   (let* ((h (zip range (histogram body)))
          (p (mapcar #'car (remove-if-not (lambda (x) (>= (cadr x) 2)) h))))
     (mapcar #'Twins p)))
 
 ;; 刻子候補を返す
-;; pick_triplets :: [Int] -> Hands
-;; * (pick_triplets '(1 1 2 2 3 3 4 4 5 5 5 6 6 6))
+;; pick-triplets :: [Int] -> Hands
+;; * (pick-triplets '(1 1 2 2 3 3 4 4 5 5 5 6 6 6))
 ;; -> ((TRIPLETS 5) (TRIPLETS 6))
-(defun pick_triplets (body)
+(defun pick-triplets (body)
   (let* ((h (zip range (histogram body)))
          (p (mapcar #'car (remove-if-not (lambda (x) (>= (cadr x) 3)) h))))
     (mapcar #'Triplets p)))
 
 ;; 順子候補を返す
-;; pick_series :: [Int] -> Hands
-;; * (pick_series '(1 1 2 2 3 3 4 4 5 5 5 6 6 6))
+;; pick-series :: [Int] -> Hands
+;; * (pick-series '(1 1 2 2 3 3 4 4 5 5 5 6 6 6))
 ;; -> ((SERIES 1) (SERIES 2) (SERIES 3) (SERIES 4))
 (defun product3 (h0)
   (let* ((h1 (cdr h0))
          (h2 (cdr h1))
          (p (zip h0 h1 h2)))
     (mapcar (lambda (x) (* (car x) (cadr x) (caddr x))) p)))
-(defun pick_series (body)
+(defun pick-series (body)
   (let* ((h (histogram body))
          (z (zip range (product3 h)))
          (p (mapcar #'car (remove-if-not (lambda (x) (/= 0 (cadr x))) z))))
     (mapcar #'Series p)))
 
 ;; 未確定牌(Free要素)の中にある刻子と順子を返す
-;; find_trios :: [Int] -> Hands
-;; * (find_trios '(5 5 5 6 6 6 7 7 7))
+;; find-trios :: [Int] -> Hands
+;; * (find-trios '(5 5 5 6 6 6 7 7 7))
 ;; -> ((TRIPLETS 5) (TRIPLETS 6) (TRIPLETS 7) (SERIES 5))
-(defun find_trios (a)
-  (append (pick_triplets a) (pick_series a)))
+(defun find-trios (a)
+  (append (pick-triplets a) (pick-series a)))
 
 ;; 手牌の中からTwins要素を探し、マージした結果を返す
-;; find_twins' :: [Int] -> Hands -> [Int]
-;; * (find_twins '((Twins 11 15)(Twins 21)(Free 5 7 9)))
+;; find-twins' :: [Int] -> Hands -> [Int]
+;; * (find-twins '((Twins 11 15)(Twins 21)(Free 5 7 9)))
 ;; -> (TWINS 11 15 21)
-(defun find_twins* (list hands)
+(defun find-twins* (list hands)
   (cond ((null hands) list)
         ((eq 'Twins (caar hands))
-          (find_twins* (append list (cdar hands)) (cdr hands)))
-        (t (find_twins* list (cdr hands)))))
-;; find_twins :: Hands -> Hands
-(defun find_twins (hands)
-  (let* ((r (find_twins* nil hands)))
+          (find-twins* (append list (cdar hands)) (cdr hands)))
+        (t (find-twins* list (cdr hands)))))
+;; find-twins :: Hands -> Hands
+(defun find-twins (hands)
+  (let* ((r (find-twins* nil hands)))
     (if (null r) nil (Twins (sort-list r)))))
 
 ;; 手牌の中からTriplets要素を探し、マージした結果を返す
-;; find_triplets' :: [Int] -> Hands -> [Int]
-;; * (find_triplets '((Twins 1)(Triplets 2)(Triplets 4)(Free 5 7 9)))
+;; find-triplets' :: [Int] -> Hands -> [Int]
+;; * (find-triplets '((Twins 1)(Triplets 2)(Triplets 4)(Free 5 7 9)))
 ;; -> (TRIPLETS 2 4)
-(defun find_triplets* (list hands)
+(defun find-triplets* (list hands)
   (cond ((null hands) list)
         ((eq 'Triplets (caar hands))
-          (find_triplets* (append list (cdar hands)) (cdr hands)))
-        (t (find_triplets* list (cdr hands)))))
-;; find_triplets :: Hands -> Hands
-(defun find_triplets (hands)
-  (let* ((r (find_triplets* nil hands)))
+          (find-triplets* (append list (cdar hands)) (cdr hands)))
+        (t (find-triplets* list (cdr hands)))))
+;; find-triplets :: Hands -> Hands
+(defun find-triplets (hands)
+  (let* ((r (find-triplets* nil hands)))
     (if (null r) nil (Triplets (sort-list r)))))
 
 ;; 手牌の中からSeries要素を探し、マージした結果を返す
-;; find_series' :: [Int] -> Hands -> [Int]
-;; * (find_series '((Twins 1)(Triplets 11)(Series 21)(Series 2)))
+;; find-series' :: [Int] -> Hands -> [Int]
+;; * (find-series '((Twins 1)(Triplets 11)(Series 21)(Series 2)))
 ;; -> (SERIES 2 21)
-(defun find_series* (list hands)
+(defun find-series* (list hands)
   (cond ((null hands) list)
         ((eq 'Series (caar hands))
-          (find_series* (append list (cdar hands)) (cdr hands)))
-        (t (find_series* list (cdr hands)))))
-;; find_series :: Hands -> Hands
-(defun find_series (hands)
-  (let ((r (find_series* nil hands)))
+          (find-series* (append list (cdar hands)) (cdr hands)))
+        (t (find-series* list (cdr hands)))))
+;; find-series :: Hands -> Hands
+(defun find-series (hands)
+  (let ((r (find-series* nil hands)))
     (if (null r) nil (Series (sort-list r)))))
 
 ;; 手牌の中からKokushi要素を探して返す
 ;; 手牌の中のKokushi要素は高々1つしか無いはず。
-;; * (find_kokushi '((Kokushi 1)))
+;; * (find-kokushi '((Kokushi 1)))
 ;; -> (KOKUSHI 1)
-;; find_kokushi' :: Hands -> [Int]
-(defun find_kokushi* (hands)
+;; find-kokushi' :: Hands -> [Int]
+(defun find-kokushi* (hands)
   (cond ((null hands) nil)
         ((eq 'Kokushi (caar hands)) (cdar hands))
-        (t (find_kokushi* (cdr hands)))))
-;; find_kokushi :: Hands -> Hands
-(defun find_kokushi (hands)
-  (let ((r (find_kokushi* hands)))
+        (t (find-kokushi* (cdr hands)))))
+;; find-kokushi :: Hands -> Hands
+(defun find-kokushi (hands)
+  (let ((r (find-kokushi* hands)))
     (if (null r) nil (Kokushi (sort-list r)))))
 
 ;; 手牌の中から確定牌(Free要素以外)を探して返す
-;; find_fixed :: Hands -> Hands
-;; * (find_fixed '((Twins 1)(Series 2)(Free 4 7 9)))
+;; find-fixed :: Hands -> Hands
+;; * (find-fixed '((Twins 1)(Series 2)(Free 4 7 9)))
 ;; -> ((TWINS 1) (SERIES 2))
-(defun find_fixed (x)
-  (let ((r1 (find_kokushi x))
-        (r2 (find_twins x))
-        (r3 (find_triplets x))
-        (r4 (find_series x)))
+(defun find-fixed (x)
+  (let ((r1 (find-kokushi x))
+        (r2 (find-twins x))
+        (r3 (find-triplets x))
+        (r4 (find-series x)))
     (remove nil (list r1 r2 r3 r4))))
 
 ;; 手牌の中から未確定牌(Free要素)を探し、マージした結果を返す
-;; find_free :: Hands -> Hands
-;; * (find_free '((Twins 1)(Series 2)(Free 5 5 6 6 7 7)))
+;; find-free :: Hands -> Hands
+;; * (find-free '((Twins 1)(Series 2)(Free 5 5 6 6 7 7)))
 ;; -> ((FREE 5 5 6 6 7 7))
-;; * (find_free '((Free 1)(Free 2)(Free (5 5 6 6 7 7))))
+;; * (find-free '((Free 1)(Free 2)(Free (5 5 6 6 7 7))))
 ;; -> ((FREE 1 2 5 5 6 6 7 7))
-(defun find_free* (list hands)
+(defun find-free* (list hands)
   (cond ((null hands) list)
         ((eq 'Free (caar hands))
-          (find_free* (append list (unbox (car hands))) (cdr hands)))
-        (t (find_free* list (cdr hands)))))
-(defun find_free (hands)
-  (let ((r (find_free* nil hands)))
+          (find-free* (append list (unbox (car hands))) (cdr hands)))
+        (t (find-free* list (cdr hands)))))
+(defun find-free (hands)
+  (let ((r (find-free* nil hands)))
     (if (null r) nil (list (Free (sort-list r))))))
 
 ;; 手牌の並びを正規化する
 ;; normalize :: Hands -> Hands
-;; * (normalize (pick_twins '(1 1 2 2 3 3 4 4 5 5 5 6 6 6)))
+;; * (normalize (pick-twins '(1 1 2 2 3 3 4 4 5 5 5 6 6 6)))
 ;; -> ((TWINS 1 2 3 4 5 6))
 ;; * (normalize '((Twins 1)(Free 5 7)(Free 6)(Twins 7 5)))
 ;; -> ((TWINS 1 5 7) (FREE 5 6 7))
 (defun normalize (x)
-  (append (find_fixed x) (find_free x)))
+  (append (find-fixed x) (find-free x)))
 
 ;; リストから重複要素を削除する
 ;; * (nub '(((Twins 1))((Series 3))((Twins 1))((Series 3))))
@@ -386,27 +386,27 @@
 ;;    ((TWINS 1) (TRIPLETS 6) (SERIES 2) (FREE 5 5 5 7 7 7))
 ;;    ((TWINS 1) (TRIPLETS 7) (SERIES 2) (FREE 5 5 5 6 6 6))
 ;;    ((TWINS 1) (SERIES 2 5) (FREE 5 5 6 6 7 7))
-(defun remove_from (hand mentsu)
+(defun remove-from (hand mentsu)
   (let* ((rest (subset (unbox hand) (unbox mentsu))))
     (cond ((null rest) nil)
           (t (Free (sort-list rest))))))
 (defun proceed1 (hands)
-  (let* ((rest (car (find_free hands)))
-         (fixed (find_fixed hands))
-         (mentsu (find_trios (unbox rest)))
+  (let* ((rest (car (find-free hands)))
+         (fixed (find-fixed hands))
+         (mentsu (find-trios (unbox rest)))
          (proc (lambda (x)
-           (normalize (append fixed (list x) (list (remove_from rest x)))))))
+           (normalize (append fixed (list x) (list (remove-from rest x)))))))
     (mapcar proc mentsu)))
 
 ;; Free要素の有無を検査する
-;; * (has_free '((Twins 1)(Free 5 7)(Free 6)(Twins 7 5)))
+;; * (has-free '((Twins 1)(Free 5 7)(Free 6)(Twins 7 5)))
 ;; -> T
-;; * (has_free '((Twins 1)(Twins 7 5)))
+;; * (has-free '((Twins 1)(Twins 7 5)))
 ;; -> NIL
-(defun has_free (list)
+(defun has-free (list)
   (cond ((null list) nil)
         ((eq 'Free (caar list)) t)
-        (t (has_free (cdr list)))))
+        (t (has-free (cdr list)))))
 
 ;; 1雀頭+N面子を確定する
 ;; solve' :: [Hands] -> [Hands]
@@ -415,7 +415,7 @@
 ;; -> (((TWINS 1) (TRIPLETS 18) (SERIES 14 14)))
 (defun solve* (hands)
   (let* ((r (nub (concatmap #'proceed1 hands)))
-         (count (length (remove-if-not #'has_free r))))
+         (count (length (remove-if-not #'has-free r))))
     (if (eql count 0) r (solve* r))))
 
 ;; 手牌から雀頭を括りだす
@@ -427,9 +427,9 @@
 ;; アガリが成立する組み合せの集合を返す
 ;; solve :: [Int] -> [Hands]
 (defun solve (body)
-  (let* ((hands (mapcar (lambda (x) (split body (car (unbox x)))) (pick_twins body)))
-         (r1 (pick_7pairs body))  ;; 七対子判定
-         (r2 (pick_kokushi body)) ;; 国士無双判定
+  (let* ((hands (mapcar (lambda (x) (split body (car (unbox x)))) (pick-twins body)))
+         (r1 (pick-7pairs body))  ;; 七対子判定
+         (r2 (pick-kokushi body)) ;; 国士無双判定
          (r3 (solve* hands)))     ;; 1雀頭+N面子判定
     (remove-if-not (lambda (x) (not (null x))) (cons r1 (cons r2 r3)))))
 
@@ -443,7 +443,7 @@
 ;; * (pp '(((Twins 1 2 3 4 5 6 7))))
 ;; -> ((一 一)(二 二)(三 三)(四 四)(五 五)(六 六)(七 七))
 (defun pp (list)
-  (let* ((proc (lambda (x) (format nil "(~{~A~})" (mapcar #'show_hand x)))))
+  (let* ((proc (lambda (x) (format nil "(~{~A~})" (mapcar #'show-hand x)))))
     (p (mapcar proc list))))
 
 ;; メイン関数
