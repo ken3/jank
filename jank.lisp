@@ -1,7 +1,8 @@
 
 ;; 機能: 麻雀の役判定と点数計算
 ;; 作成: 2017-11-14  ken3@nurs.or.jp
-;; 更新: 2017-11-17  ken3@nurs.or.jp
+;; 更新: 2017-11-21  ken3@nurs.or.jp
+;; Common Lisp(SBCL)版
 
 ;; 連番生成
 (defun iota (m &optional (n 1) (step 1))
@@ -144,13 +145,13 @@
 ;; -> (2 3 4 12 13 14 22 23 24)
 (defun make-series (v) (list v (+ 1 v) (+ 2 v)))
 (defun unbox* (k h)
-  (if (listp h)
-    (cond ((eq k 'Twins) (concat (mapcar (lambda (x) (list x x)) h)))
-          ((eq k 'Triplets) (concat (mapcar (lambda (x) (list x x x)) h)))
-          ((eq k 'Series) (concat (mapcar #'make-series h)))
-          ((eq k 'Free) h)
-          ((eq k 'Kokushi) (sort-list (cons (car h) yaochu)))
-          (t nil)) nil))
+  (if (listp h) (case k
+      ((Twins)    (concat (mapcar (lambda (x) (list x x)) h)))
+      ((Triplets) (concat (mapcar (lambda (x) (list x x x)) h)))
+      ((Series)   (concat (mapcar #'make-series h)))
+      ((Free)     h)
+      ((Kokushi)  (sort-list (cons (car h) yaochu)))
+      (otherwise   nil)) nil))
 (defun unbox (hand)
   (let* ((r (sort-list (unbox* (car hand) (cdr hand))))
          (h (car r)))
@@ -205,15 +206,15 @@
 (defun show-hand (hand)
   (let ((type (car hand))
         (c (cadr hand)))
-    (cond
-      ((eq type 'Twins) (show-hand* (lambda (x) (to-string (list x x))) hand))
-      ((eq type 'Triplets) (show-hand* (lambda (x) (to-string (list x x x))) hand))
-      ((eq type 'Series)(show-hand* (lambda (x) (to-string (make-series x))) hand))
-      ((eq type 'Free) (cond ((integerp c)(to-string (cdr hand)))
-                              ((listp c)(to-string c))
-                              (t nil)))
-      ((eq type 'Kokushi) (let ((h (if (listp c) (car c) c)))
-                            (to-string (sort-list (cons h yaochu))))) (t nil))))
+    (case type
+      ((Twins)    (show-hand* (lambda (x) (to-string (list x x))) hand))
+      ((Triplets) (show-hand* (lambda (x) (to-string (list x x x))) hand))
+      ((Series)   (show-hand* (lambda (x) (to-string (make-series x))) hand))
+      ((Free)     (cond ((integerp c) (to-string (cdr hand)))
+                        ((listp c)    (to-string c))
+                        (t nil)))
+      ((Kokushi)  (let ((h (if (listp c) (car c) c)))
+                    (to-string (sort-list (cons h yaochu))))) (t nil))))
 
 ;; ヒストグラムを返す
 ;; * (histogram '(1 9 11 19 21 29 31 33 35 37 41 43 45 45))
@@ -244,7 +245,7 @@
 ;; 雀頭候補を返す
 ;; pick-twins :: [Int] -> Hands
 ;; * (pick-twins '(1 1 2 2 3 3 4 4 5 5 5 6 6 6))
-;; -> ((Twins 1) (Twins 2) (Twins 3) (Twins 4) (Twins 5) (Twins 6))
+;; -> ((TWINS 1) (TWINS 2) (TWINS 3) (TWINS 4) (TWINS 5) (TWINS 6))
 (defun pick-twins (body)
   (let* ((h (zip range (histogram body)))
          (p (mapcar #'car (remove-if-not (lambda (x) (>= (cadr x) 2)) h))))
